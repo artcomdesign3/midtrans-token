@@ -62,9 +62,7 @@ exports.handler = async function(event, context) {
 
         // Midtrans API URL (Production)
         const api_url = 'https://app.midtrans.com/snap/v1/transactions';
-        
-        // Get server key from environment variable
-        const server_key = process.env.MIDTRANS_SERVER_KEY || 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
+        const server_key = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 
         // Make API call to Midtrans
         const response = await fetch(api_url, {
