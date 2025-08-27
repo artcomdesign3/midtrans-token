@@ -28,11 +28,11 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
         
-        // 🔧 AMOUNT DÜZELTMESİ - Amount olduğu gibi kullan (100'e bölme yok)
-        const finalAmount = parseInt(amount);
+        // 🔧 AMOUNT DÜZELTMESİ - Wix'ten gelen amount 100 kat büyük
+        const finalAmount = Math.round(parseInt(amount) / 100);
         
-        console.log('�� Amount from Wix:', amount);
-        console.log('💰 Final amount for Midtrans:', finalAmount);
+        console.log('💰 Amount from Wix (100x):', amount);
+        console.log('💰 Final amount for Midtrans (divided by 100):', finalAmount);
         
         // Validate amount
         if (!finalAmount || finalAmount <= 0) {
@@ -55,12 +55,12 @@ exports.handler = async function(event, context) {
         const midtransParams = {
             transaction_details: {
                 order_id: orderId,
-                gross_amount: finalAmount // �� Amount olduğu gibi
+                gross_amount: finalAmount // 🔧 DÜZELTİLDİ
             },
             item_details: [
                 {
                     id: 'ITEM_001',
-                    price: finalAmount, // �� Amount olduğu gibi
+                    price: finalAmount, // 🔧 DÜZELTİLDİ
                     quantity: 1,
                     name: item_name || 'Product'
                 }
