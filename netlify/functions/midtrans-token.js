@@ -2,17 +2,16 @@
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
-        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 
-    // Handle preflight request
+    // Handle preflight OPTIONS request
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
-            headers,
+            headers: headers,
             body: ''
         };
     }
@@ -21,102 +20,113 @@ exports.handler = async function(event, context) {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers,
+            headers: headers,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
 
     try {
-        // Parse request body
-        let { amount, item_name } = JSON.parse(event.body);
-
-        if (!amount) {
+        const { amount, item_name } = JSON.parse(event.body);
+        
+        // 🔧 AMOUNT DÜZELTMESİ - Wix'ten gelen amount zaten doğru
+        const finalAmount = parseInt(amount);
+        
+        console.log('💰 Original amount from Wix:', amount);
+        console.log('💰 Final amount for Midtrans:', finalAmount);
+        
+        // Validate amount
+        if (!finalAmount || finalAmount <= 0) {
             return {
                 statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Amount is required' })
+                headers: headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    error: 'Invalid amount' 
+                })
             };
         }
 
-        // 🔑 Wix decimal / thousand separator fix
-        // Örnek: "1,038.00" → 1038
-        amount = amount.toString().replace(/,/g, '');  // Virgül kaldır
-        amount = parseFloat(amount);                   // Float yap
-        if (isNaN(amount) || amount < 1) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Invalid amount' })
-            };
-        }
-        amount = Math.round(amount); // integer IDR
-
-        // Create order ID
-        const order_id = 'WIX-' + Date.now() + '-' + Math.floor(Math.random() * 9000 + 1000);
+        // Create unique order ID
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substr(2, 9);
+        const orderId = `ORDER_${timestamp}_${randomId}`;
 
         // Midtrans parameters
-        const params = {
+        const midtransParams = {
             transaction_details: {
-                order_id: order_id,
-                gross_amount: amount
+                order_id: orderId,
+                gross_amount: finalAmount // 🔧 DÜZELTİLDİ
             },
-            item_details: [{
-                id: 'ITEM-' + Date.now(),
-                price: amount,
-                quantity: 1,
-                name: item_name || 'Wix Product'
-            }],
+            item_details: [
+                {
+                    id: 'ITEM_001',
+                    price: finalAmount, // 🔧 DÜZELTİLDİ
+                    quantity: 1,
+                    name: item_name || 'Product'
+                }
+            ],
             customer_details: {
                 first_name: 'Customer',
                 email: 'customer@example.com',
-                phone: '+6281234567890'
+                phone: '08123456789'
             }
         };
 
-        // Midtrans API URL (Production)
+        // Midtrans API call
         const api_url = 'https://app.midtrans.com/snap/v1/transactions';
-        const server_key = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
+        const server_key = process.env.MIDTRANS_SERVER_KEY || 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
+        
+        console.log('🚀 Calling Midtrans API with params:', midtransParams);
 
-        // Make API call to Midtrans
         const response = await fetch(api_url, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(server_key + ':').toString('base64')
+                'Authorization': 'Basic ' + btoa(server_key + ':')
             },
-            body: JSON.stringify(params)
+            body: JSON.stringify(midtransParams)
         });
 
-        if (!response.ok) {
-            throw new Error(`Midtrans API error: ${response.status}`);
-        }
+        const responseData = await response.json();
+        
+        console.log('📡 Midtrans API response:', responseData);
 
-        const response_data = await response.json();
-        if (!response_data || !response_data.token) {
-            throw new Error('Invalid response from Midtrans');
+        if (response.ok && responseData.token) {
+            return {
+                statusCode: 200,
+                headers: headers,
+                body: JSON.stringify({
+                    success: true,
+                    data: {
+                        token: responseData.token,
+                        order_id: orderId,
+                        amount: finalAmount
+                    }
+                })
+            };
+        } else {
+            console.error('❌ Midtrans API error:', responseData);
+            return {
+                statusCode: 400,
+                headers: headers,
+                body: JSON.stringify({
+                    success: false,
+                    error: 'Failed to generate payment token',
+                    details: responseData
+                })
+            };
         }
-
-        // Return success response
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                data: {
-                    token: response_data.token,
-                    order_id: order_id
-                }
-            })
-        };
 
     } catch (error) {
-        console.error('Error:', error);
+        console.error('💥 Function error:', error);
         return {
             statusCode: 500,
-            headers,
+            headers: headers,
             body: JSON.stringify({
-                error: 'Server error: ' + error.message
+                success: false,
+                error: 'Internal server error',
+                message: error.message
             })
         };
     }
