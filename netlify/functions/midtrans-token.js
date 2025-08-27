@@ -1,100 +1,123 @@
-<?php
-// midtrans_token.php - WordPress.com hosting dışında
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
+// netlify/functions/midtrans-token.js
+exports.handler = async function(event, context) {
+    // CORS headers
+    const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    };
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit(json_encode(['error' => 'Method not allowed']));
-}
+    // Handle preflight request
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
 
-// Get POST data
-$input = json_decode(file_get_contents('php://input'), true);
-$amount = isset($input['amount']) ? floatval($input['amount']) : 0;
-$item_name = isset($input['item_name']) ? $input['item_name'] : 'Wix Product';
+    // Only allow POST
+    if (event.httpMethod !== 'POST') {
+        return {
+            statusCode: 405,
+            headers,
+            body: JSON.stringify({ error: 'Method not allowed' })
+        };
+    }
 
-// 🔑 IDR için integer tutar
-$amount = (int) round($amount);
+    try {
+        // Parse request body
+        let { amount, item_name } = JSON.parse(event.body);
 
-if ($amount < 1000) {
-    http_response_code(400);
-    exit(json_encode(['error' => 'Invalid amount']));
-}
+        if (!amount) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Amount is required' })
+            };
+        }
 
-// Create order ID
-$order_id = 'WIX-' . time() . '-' . rand(1000, 9999);
+        // 🔑 Wix decimal / thousand separator fix
+        // Örnek: "1,038.00" → 1038
+        amount = amount.toString().replace(/,/g, '');  // Virgül kaldır
+        amount = parseFloat(amount);                   // Float yap
+        if (isNaN(amount) || amount < 1) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Invalid amount' })
+            };
+        }
+        amount = Math.round(amount); // integer IDR
 
-// Midtrans parameters
-$params = array(
-    'transaction_details' => array(
-        'order_id' => $order_id,
-        'gross_amount' => $amount   // ✅ integer
-    ),
-    'item_details' => array(
-        array(
-            'id' => 'ITEM-' . time(),
-            'price' => $amount,     // ✅ integer
-            'quantity' => 1,
-            'name' => $item_name
-        )
-    ),
-    'customer_details' => array(
-        'first_name' => 'Customer',
-        'email' => 'customer@example.com',
-        'phone' => '+6281234567890'
-    )
-);
+        // Create order ID
+        const order_id = 'WIX-' + Date.now() + '-' + Math.floor(Math.random() * 9000 + 1000);
 
-// Midtrans API URL (Production)
-$api_url = 'https://app.midtrans.com/snap/v1/transactions';
-$server_key = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
+        // Midtrans parameters
+        const params = {
+            transaction_details: {
+                order_id: order_id,
+                gross_amount: amount
+            },
+            item_details: [{
+                id: 'ITEM-' + Date.now(),
+                price: amount,
+                quantity: 1,
+                name: item_name || 'Wix Product'
+            }],
+            customer_details: {
+                first_name: 'Customer',
+                email: 'customer@example.com',
+                phone: '+6281234567890'
+            }
+        };
 
-// Make API call to Midtrans
-$curl = curl_init();
-curl_setopt_array($curl, array(
-    CURLOPT_URL => $api_url,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => json_encode($params),
-    CURLOPT_HTTPHEADER => array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-        'Authorization: ' . 'Basic ' . base64_encode($server_key . ':')
-    ),
-    CURLOPT_TIMEOUT => 30,
-    CURLOPT_SSL_VERIFYPEER => false
-));
+        // Midtrans API URL (Production)
+        const api_url = 'https://app.midtrans.com/snap/v1/transactions';
+        const server_key = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 
-$response = curl_exec($curl);
-$http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-$curl_error = curl_error($curl);
-curl_close($curl);
+        // Make API call to Midtrans
+        const response = await fetch(api_url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(server_key + ':').toString('base64')
+            },
+            body: JSON.stringify(params)
+        });
 
-if ($curl_error) {
-    http_response_code(500);
-    exit(json_encode(['error' => 'Connection error: ' . $curl_error]));
-}
+        if (!response.ok) {
+            throw new Error(`Midtrans API error: ${response.status}`);
+        }
 
-if ($http_code !== 201) {
-    http_response_code(500);
-    exit(json_encode(['error' => 'Payment gateway error: HTTP ' . $http_code]));
-}
+        const response_data = await response.json();
+        if (!response_data || !response_data.token) {
+            throw new Error('Invalid response from Midtrans');
+        }
 
-$response_data = json_decode($response, true);
+        // Return success response
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                success: true,
+                data: {
+                    token: response_data.token,
+                    order_id: order_id
+                }
+            })
+        };
 
-if (!$response_data || !isset($response_data['token'])) {
-    http_response_code(500);
-    exit(json_encode(['error' => 'Invalid response from payment gateway']));
-}
-
-// Return success response
-echo json_encode([
-    'success' => true,
-    'data' => [
-        'token' => $response_data['token'],
-        'order_id' => $order_id
-    ]
-]);
-?>
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({
+                error: 'Server error: ' + error.message
+            })
+        };
+    }
+};
