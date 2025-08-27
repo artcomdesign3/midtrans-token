@@ -28,7 +28,10 @@ exports.handler = async function(event, context) {
 
     try {
         // Parse request body
-        const { amount, item_name } = JSON.parse(event.body);
+        let { amount, item_name } = JSON.parse(event.body);
+
+        // 🔑 Midtrans IDR fix: tutarı integer yap
+        amount = parseInt(Math.round(amount));
 
         if (!amount || amount < 1000) {
             return {
@@ -45,11 +48,11 @@ exports.handler = async function(event, context) {
         const params = {
             transaction_details: {
                 order_id: order_id,
-                gross_amount: amount
+                gross_amount: amount  // ✅ integer
             },
             item_details: [{
                 id: 'ITEM-' + Date.now(),
-                price: amount,
+                price: amount,        // ✅ integer
                 quantity: 1,
                 name: item_name || 'Wix Product'
             }],
@@ -70,7 +73,7 @@ exports.handler = async function(event, context) {
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + btoa(server_key + ':')
+                'Authorization': 'Basic ' + Buffer.from(server_key + ':').toString('base64') // ✅ btoa yerine Buffer
             },
             body: JSON.stringify(params)
         });
@@ -103,8 +106,8 @@ exports.handler = async function(event, context) {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-                error: 'Server error: ' + error.message 
+            body: JSON.stringify({
+                error: 'Server error: ' + error.message
             })
         };
     }
