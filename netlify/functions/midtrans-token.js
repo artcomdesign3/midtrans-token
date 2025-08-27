@@ -28,11 +28,11 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
         
-        // 🔧 AMOUNT DÜZELTMESİ - Wix'ten gelen amount zaten doğru
-        const finalAmount = parseInt(amount);
+        // 🔧 AMOUNT DÜZELTMESİ - Wix'ten gelen amount 1000 kat büyük
+        const finalAmount = Math.round(parseInt(amount) / 1000);
         
-        console.log('💰 Original amount from Wix:', amount);
-        console.log('💰 Final amount for Midtrans:', finalAmount);
+        console.log('💰 Amount from Wix (1000x):', amount);
+        console.log('💰 Final amount for Midtrans (divided by 1000):', finalAmount);
         
         // Validate amount
         if (!finalAmount || finalAmount <= 0) {
