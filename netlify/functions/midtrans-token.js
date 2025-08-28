@@ -55,6 +55,7 @@ exports.handler = async function(event, context) {
 			enabled_payments: ['credit_card']
 		};
 
+		// 🔑 DOĞRU endpoint - Snap API
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
@@ -71,14 +72,14 @@ exports.handler = async function(event, context) {
 
 		const responseData = await response.json();
 
-		if (response.ok && responseData.token) {
+		if (response.ok && responseData.redirect_url) {
 			return {
 				statusCode: 200,
 				headers,
 				body: JSON.stringify({
 					success: true,
 					data: {
-						token: responseData.token,
+						payment_url: responseData.redirect_url,
 						order_id: orderId,
 						amount: finalAmount
 					}
@@ -91,7 +92,7 @@ exports.handler = async function(event, context) {
 			headers,
 			body: JSON.stringify({
 				success: false,
-				error: 'Failed to generate payment token',
+				error: 'Failed to create payment',
 				details: responseData
 			})
 		};
