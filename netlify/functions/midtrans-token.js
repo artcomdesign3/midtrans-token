@@ -32,7 +32,7 @@ exports.handler = async function(event, context) {
 
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Snap API parametreleri - redirect_url ile
+		// Snap API parametreleri
 		const snapParams = {
 			transaction_details: {
 				order_id: orderId,
@@ -52,19 +52,12 @@ exports.handler = async function(event, context) {
 				phone: '08123456789'
 			},
 			// Sadece kart ödemesi
-			enabled_payments: ['credit_card'],
-			// Redirect ayarları
-			callbacks: {
-				finish: 'https://www.artcom.design/thank-you-page'
-			}
+			enabled_payments: ['credit_card']
 		};
 
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
-
-		console.log('�� DEBUG - API URL:', apiUrl);
-		console.log('🔍 DEBUG - Params:', JSON.stringify(snapParams, null, 2));
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -77,18 +70,15 @@ exports.handler = async function(event, context) {
 		});
 
 		const responseData = await response.json();
-		
-		console.log('🔍 DEBUG - Response Status:', response.status);
-		console.log('🔍 DEBUG - Response Data:', JSON.stringify(responseData, null, 2));
 
-		if (response.ok && responseData.redirect_url) {
+		if (response.ok && responseData.token) {
 			return {
 				statusCode: 200,
 				headers,
 				body: JSON.stringify({
 					success: true,
 					data: {
-						payment_url: responseData.redirect_url,
+						token: responseData.token,
 						order_id: orderId,
 						amount: finalAmount
 					}
@@ -101,12 +91,11 @@ exports.handler = async function(event, context) {
 			headers,
 			body: JSON.stringify({
 				success: false,
-				error: 'Failed to create payment link',
+				error: 'Failed to generate payment token',
 				details: responseData
 			})
 		};
 	} catch (error) {
-		console.error('�� ERROR:', error);
 		return {
 			statusCode: 500,
 			headers,
