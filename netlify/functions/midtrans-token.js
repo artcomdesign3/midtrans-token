@@ -1,4 +1,6 @@
 // netlify/functions/midtrans-token.js
+const fetch = require('node-fetch');
+
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -7,11 +9,11 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 
-    // Handle preflight OPTIONS request
+    // Handle preflight request
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
-            headers: headers,
+            headers,
             body: ''
         };
     }
@@ -20,7 +22,7 @@ exports.handler = async function(event, context) {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers: headers,
+            headers,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -28,28 +30,19 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
         
-        // 🔧 AMOUNT DÜZELTMESİ - Amount olduğu gibi kullan (bölme yok)
+        // 🔧 AMOUNT DÜZELTMESİ - Amount olduğu gibi kullan (çarpma yok)
         const finalAmount = parseInt(amount);
         
         console.log('💰 Amount from WordPress:', amount);
         console.log('💰 Final amount for Midtrans:', finalAmount);
         
-        // Validate amount
-        if (!finalAmount || finalAmount <= 0) {
-            return {
-                statusCode: 400,
-                headers: headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: 'Invalid amount' 
-                })
-            };
+        // Validation
+        if (!amount || finalAmount <= 0) {
+            throw new Error('Invalid amount');
         }
 
-        // Create unique order ID
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substr(2, 9);
-        const orderId = `ORDER_${timestamp}_${randomId}`;
+        // Generate unique order ID
+        const orderId = 'ORDER_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         // Midtrans parameters
         const midtransParams = {
@@ -69,64 +62,74 @@ exports.handler = async function(event, context) {
                 first_name: 'Customer',
                 email: 'customer@example.com',
                 phone: '08123456789'
+            },
+            enabled_payments: [
+                'credit_card',
+                'bca_va',
+                'bni_va',
+                'bri_va',
+                'mandiri_clickpay',
+                'gopay',
+                'indomaret',
+                'danamon_online'
+            ],
+            credit_card: {
+                secure: true,
+                bank: 'all',
+                installment: {
+                    required: false,
+                    terms: {
+                        bca: [3, 6, 12],
+                        bni: [3, 6, 12],
+                        mandiri: [3, 6, 12]
+                    }
+                }
             }
         };
 
-        // Midtrans API call
-        const api_url = 'https://app.midtrans.com/snap/v1/transactions';
-        const server_key = process.env.MIDTRANS_SERVER_KEY || 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
-        
-        console.log('🚀 Calling Midtrans API with params:', midtransParams);
+        console.log('�� Midtrans params:', midtransParams);
 
-        const response = await fetch(api_url, {
+        // Call Midtrans API
+        const response = await fetch('https://api.sandbox.midtrans.com/v2/charge', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + btoa(server_key + ':')
+                'Authorization': 'Basic ' + Buffer.from('Mid-server-yIrRbdPgiI6HE1NI:').toString('base64')
             },
             body: JSON.stringify(midtransParams)
         });
 
-        const responseData = await response.json();
-        
-        console.log('📡 Midtrans API response:', responseData);
+        const data = await response.json();
 
-        if (response.ok && responseData.token) {
+        if (data.status_code === '201') {
+            console.log('✅ Midtrans response:', data);
+            
             return {
                 statusCode: 200,
-                headers: headers,
+                headers,
                 body: JSON.stringify({
                     success: true,
                     data: {
-                        token: responseData.token,
-                        order_id: orderId,
-                        amount: finalAmount
+                        token: data.redirect_url,
+                        order_id: orderId
                     }
                 })
             };
         } else {
-            console.error('❌ Midtrans API error:', responseData);
-            return {
-                statusCode: 400,
-                headers: headers,
-                body: JSON.stringify({
-                    success: false,
-                    error: 'Failed to generate payment token',
-                    details: responseData
-                })
-            };
+            console.error('❌ Midtrans error:', data);
+            throw new Error(data.status_message || 'Payment failed');
         }
 
     } catch (error) {
-        console.error('💥 Function error:', error);
+        console.error('❌ Function error:', error);
+        
         return {
             statusCode: 500,
-            headers: headers,
+            headers,
             body: JSON.stringify({
                 success: false,
-                error: 'Internal server error',
-                message: error.message
+                error: error.message
             })
         };
     }
