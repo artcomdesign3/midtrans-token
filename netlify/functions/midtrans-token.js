@@ -1,6 +1,4 @@
 // netlify/functions/midtrans-token.js
-const fetch = require('node-fetch');
-
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -89,13 +87,13 @@ exports.handler = async function(event, context) {
 
         console.log('�� Midtrans params:', midtransParams);
 
-        // Call Midtrans API
+        // Call Midtrans API using built-in fetch
         const response = await fetch('https://api.sandbox.midtrans.com/v2/charge', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from('Mid-server-yIrRbdPgiI6HE1NI:').toString('base64')
+                'Authorization': 'Basic ' + btoa('Mid-server-yIrRbdPgiI6HE1NI:')
             },
             body: JSON.stringify(midtransParams)
         });
