@@ -74,7 +74,7 @@ exports.handler = async function(event, context) {
 
         // Midtrans API call
         const api_url = 'https://app.midtrans.com/snap/v1/transactions';
-        const server_key = process.snd.MIDTRANS_SERVER_KEY || 'Mid-server-QuDoWJB3LcWtNz17zGLeBw_F';
+        const server_key = process.env.MIDTRANS_SERVER_KEY || 'Mid-server-QuDoWJB3LcWtNz17zGLeBw_F';
         
         console.log('🚀 Calling Midtrans API with params:', midtransParams);
 
