@@ -28,7 +28,7 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
         
-        // 🔧 AMOUNT DÜZELTMESİ - Amount olduğu gibi kullan (çarpma yok)
+        // 🔧 AMOUNT DÜZELTMESİ - Amount olduğu gibi kullan
         const finalAmount = parseInt(amount);
         
         console.log('💰 Amount from WordPress:', amount);
@@ -46,12 +46,12 @@ exports.handler = async function(event, context) {
         const midtransParams = {
             transaction_details: {
                 order_id: orderId,
-                gross_amount: finalAmount // Amount olduğu gibi
+                gross_amount: finalAmount
             },
             item_details: [
                 {
                     id: 'ITEM_001',
-                    price: finalAmount, // Amount olduğu gibi
+                    price: finalAmount,
                     quantity: 1,
                     name: item_name || 'Product'
                 }
@@ -70,24 +70,12 @@ exports.handler = async function(event, context) {
                 'gopay',
                 'indomaret',
                 'danamon_online'
-            ],
-            credit_card: {
-                secure: true,
-                bank: 'all',
-                installment: {
-                    required: false,
-                    terms: {
-                        bca: [3, 6, 12],
-                        bni: [3, 6, 12],
-                        mandiri: [3, 6, 12]
-                    }
-                }
-            }
+            ]
         };
 
-        console.log('�� Midtrans params:', midtransParams);
+        console.log(' Midtrans params:', midtransParams);
 
-        // Call Midtrans API using built-in fetch
+        // Call Midtrans API
         const response = await fetch('https://api.sandbox.midtrans.com/v2/charge', {
             method: 'POST',
             headers: {
