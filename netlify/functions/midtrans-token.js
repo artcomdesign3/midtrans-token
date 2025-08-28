@@ -28,12 +28,25 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
 
-        // ✅ KESİN ÇÖZÜM: IDR Parse Fonksiyonu
+        // ✅ AKILLI IDR PARSE FONKSİYONU
         function parseIDR(amount) {
             if (!amount) return 0;
-            // Tüm nokta ve virgülleri temizle
-            let clean = amount.toString().replace(/[.,]/g,''); 
-            return parseInt(clean, 10);
+
+            amount = amount.toString().trim();
+
+            // Format 1: 291,649.36 -> virgül ondalık, nokta binlik
+            if (amount.includes(',') && amount.includes('.')) {
+                // Virgülden sonra iki hane ondalık ise onları at
+                return parseInt(amount.replace(/,/g,'').split('.')[0], 10);
+            }
+
+            // Format 2: 29.164.936 -> nokta binlik
+            if (amount.includes('.') && !amount.includes(',')) {
+                return parseInt(amount.replace(/\./g,''), 10);
+            }
+
+            // Format 3: 291649 -> zaten sayı
+            return parseInt(amount.replace(/,/g,''), 10);
         }
 
         let finalAmount = parseIDR(amount);
