@@ -32,8 +32,8 @@ exports.handler = async function(event, context) {
 
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Payment Link API parametreleri - DÜZELTİLDİ
-		const paymentLinkParams = {
+		// Snap API parametreleri - redirect_url ile
+		const snapParams = {
 			transaction_details: {
 				order_id: orderId,
 				gross_amount: finalAmount
@@ -52,16 +52,19 @@ exports.handler = async function(event, context) {
 				phone: '08123456789'
 			},
 			// Sadece kart ödemesi
-			enabled_payments: ['credit_card']
+			enabled_payments: ['credit_card'],
+			// Redirect ayarları
+			callbacks: {
+				finish: 'https://www.artcom.design/thank-you-page'
+			}
 		};
 
-		// �� DOĞRU Payment Link API endpoint
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
 		console.log('�� DEBUG - API URL:', apiUrl);
-		console.log('🔍 DEBUG - Params:', JSON.stringify(paymentLinkParams, null, 2));
+		console.log('🔍 DEBUG - Params:', JSON.stringify(snapParams, null, 2));
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -70,7 +73,7 @@ exports.handler = async function(event, context) {
 				'Content-Type': 'application/json',
 				Authorization: authHeader
 			},
-			body: JSON.stringify(paymentLinkParams)
+			body: JSON.stringify(snapParams)
 		});
 
 		const responseData = await response.json();
