@@ -32,11 +32,15 @@ exports.handler = async function(event, context) {
 
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Snap API parametreleri
-		const snapParams = {
+		// 🎯 DOKUMENTASYONA GÖRE DOĞRU PARAMETRE YAPISI
+		const midtransParams = {
 			transaction_details: {
 				order_id: orderId,
 				gross_amount: finalAmount
+			},
+			// 🔥 KRITIK: Credit Card objesi eklendi
+			credit_card: {
+				secure: true  // 3D-Secure authentication
 			},
 			item_details: [
 				{
@@ -48,29 +52,22 @@ exports.handler = async function(event, context) {
 			],
 			customer_details: {
 				first_name: 'Customer',
+				last_name: 'Midtrans',
 				email: 'customer@example.com',
 				phone: '08123456789'
 			},
-			// Sadece kart ödemesi
-			enabled_payments: ['credit_card'],
-			// Callbacks ekleyin
-			callbacks: {
-				finish: 'https://www.artcom.design/thank-you-page'
-			}
+			// Sadece kredi kartı aktif
+			enabled_payments: ['credit_card']
 		};
 
-		// Snap API endpoint
+		// PRODUCTION ayarları
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-		// Debug log'ları
 		console.log('🔍 DEBUG - Amount:', finalAmount);
-		console.log('🔍 DEBUG - Item:', item_name);
 		console.log('🔍 DEBUG - Order ID:', orderId);
-		console.log('🔍 DEBUG - Snap Params:', JSON.stringify(snapParams, null, 2));
-		console.log(' DEBUG - API URL:', apiUrl);
-		console.log(' DEBUG - Server Key:', serverKey);
+		console.log('🔍 DEBUG - Midtrans Params:', JSON.stringify(midtransParams, null, 2));
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -79,16 +76,15 @@ exports.handler = async function(event, context) {
 				'Content-Type': 'application/json',
 				Authorization: authHeader
 			},
-			body: JSON.stringify(snapParams)
+			body: JSON.stringify(midtransParams)
 		});
 
 		const responseData = await response.json();
 		
-		// Debug - Midtrans Response
-		console.log('🔍 DEBUG - Response Status:', response.status);
-		console.log('🔍 DEBUG - Response Data:', JSON.stringify(responseData, null, 2));
+		console.log('🔍 DEBUG - Midtrans Response Status:', response.status);
+		console.log('🔍 DEBUG - Midtrans Response Data:', JSON.stringify(responseData, null, 2));
 
-		if (response.ok && responseData.redirect_url) {
+		if (response.ok && responseData.token) {
 			return {
 				statusCode: 200,
 				headers,
@@ -109,12 +105,12 @@ exports.handler = async function(event, context) {
 			headers,
 			body: JSON.stringify({
 				success: false,
-				error: 'Failed to create payment',
+				error: 'Failed to generate payment token',
 				details: responseData
 			})
 		};
 	} catch (error) {
-		console.error(' ERROR:', error);
+		console.error('ERROR:', error);
 		return {
 			statusCode: 500,
 			headers,
