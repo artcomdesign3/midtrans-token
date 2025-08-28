@@ -5,8 +5,8 @@ exports.handler = async function(event, context) {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'Content-Type',
 		'Access-Control-Allow-Methods': 'POST, OPTIONS',
-		// 🔧 CSP Headers - Midtrans için gerekli
-		'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.midtrans.com https://*.midtrans.com; frame-src 'self' https://app.midtrans.com https://*.midtrans.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.midtrans.com https://*.midtrans.com; connect-src 'self' https://app.midtrans.com https://*.midtrans.com;"
+		// Daha esnek CSP
+		'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; frame-src *; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;"
 	};
 
 	// Preflight
