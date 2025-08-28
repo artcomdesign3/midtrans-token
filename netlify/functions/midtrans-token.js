@@ -28,10 +28,15 @@ exports.handler = async function(event, context) {
     try {
         const { amount, item_name } = JSON.parse(event.body);
 
-        // 🔧 AMOUNT TEMİZLEME (IDR için ondalık at, virgül/nokta temizle)
-        let finalAmount = String(amount).replace(/,/g, '');
-        finalAmount = finalAmount.split('.')[0]; // ondalık kısmı at
-        finalAmount = parseInt(finalAmount, 10);
+        // ✅ KESİN ÇÖZÜM: IDR Parse Fonksiyonu
+        function parseIDR(amount) {
+            if (!amount) return 0;
+            // Tüm nokta ve virgülleri temizle
+            let clean = amount.toString().replace(/[.,]/g,''); 
+            return parseInt(clean, 10);
+        }
+
+        let finalAmount = parseIDR(amount);
 
         console.log('💰 Amount from WordPress/Wix:', amount);
         console.log('💰 Cleaned final amount for Midtrans:', finalAmount);
