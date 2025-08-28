@@ -1,10 +1,12 @@
 // netlify/functions/midtrans-token.js
 exports.handler = async function(event, context) {
-	// CORS headers
+	// CORS headers + CSP headers
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'Content-Type',
-		'Access-Control-Allow-Methods': 'POST, OPTIONS'
+		'Access-Control-Allow-Methods': 'POST, OPTIONS',
+		// 🔧 CSP Headers - Midtrans için gerekli
+		'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.midtrans.com https://*.midtrans.com; frame-src 'self' https://app.midtrans.com https://*.midtrans.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.midtrans.com https://*.midtrans.com; connect-src 'self' https://app.midtrans.com https://*.midtrans.com;"
 	};
 
 	// Preflight
