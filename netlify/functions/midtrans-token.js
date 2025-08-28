@@ -60,9 +60,9 @@ exports.handler = async function(event, context) {
 			enabled_payments: ['credit_card']
 		};
 
-		// Sandbox endpoint + TEST SERVER KEY
-		const apiUrl = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-		const serverKey = 'Mid-server-QuDoWJB3LcWtNz17zGLeBw_F';
+		// PRODUCTION endpoint + PRODUCTION SERVER KEY
+		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
+		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
 		const response = await fetch(apiUrl, {
