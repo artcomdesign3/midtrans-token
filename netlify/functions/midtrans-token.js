@@ -1,15 +1,18 @@
 // netlify/functions/midtrans-token.js
 exports.handler = async function(event, context) {
+	// CORS headers
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'Content-Type',
 		'Access-Control-Allow-Methods': 'POST, OPTIONS'
 	};
 
+	// Preflight
 	if (event.httpMethod === 'OPTIONS') {
 		return { statusCode: 200, headers, body: '' };
 	}
 
+	// Method guard
 	if (event.httpMethod !== 'POST') {
 		return {
 			statusCode: 405,
@@ -20,8 +23,9 @@ exports.handler = async function(event, context) {
 
 	try {
 		const { amount, item_name } = JSON.parse(event.body || '{}');
+
+		// Amount: integer IDR
 		const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
-		
 		if (!finalAmount || finalAmount <= 0) {
 			return {
 				statusCode: 400,
@@ -30,10 +34,11 @@ exports.handler = async function(event, context) {
 			};
 		}
 
+		// Order id
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Snap API parametreleri
-		const snapParams = {
+		// Midtrans params - Sadece kart ödemesi göster
+		const midtransParams = {
 			transaction_details: {
 				order_id: orderId,
 				gross_amount: finalAmount
@@ -51,14 +56,22 @@ exports.handler = async function(event, context) {
 				email: 'customer@example.com',
 				phone: '08123456789'
 			},
-			// Sadece kart ödemesi
+			// Sadece kart ödemesi aktif - diğer yöntemler gizli
 			enabled_payments: ['credit_card']
 		};
 
-		// 🔑 DOĞRU endpoint - Snap API
+		// PRODUCTION endpoint + PRODUCTION SERVER KEY
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
+
+		// 🔍 DEBUG LOG'LAR
+		console.log('🔍 DEBUG - Amount:', finalAmount);
+		console.log('🔍 DEBUG - Item:', item_name);
+		console.log('🔍 DEBUG - Order ID:', orderId);
+		console.log('🔍 DEBUG - Midtrans Params:', JSON.stringify(midtransParams, null, 2));
+		console.log('�� DEBUG - API URL:', apiUrl);
+		console.log('�� DEBUG - Server Key:', serverKey);
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -67,19 +80,24 @@ exports.handler = async function(event, context) {
 				'Content-Type': 'application/json',
 				Authorization: authHeader
 			},
-			body: JSON.stringify(snapParams)
+			body: JSON.stringify(midtransParams)
 		});
 
 		const responseData = await response.json();
+		
+		// 🔍 DEBUG - Midtrans Response
+		console.log('🔍 DEBUG - Midtrans Response Status:', response.status);
+		console.log('🔍 DEBUG - Midtrans Response Data:', JSON.stringify(responseData, null, 2));
 
-		if (response.ok && responseData.redirect_url) {
+		if (response.ok && responseData.token) {
 			return {
 				statusCode: 200,
 				headers,
 				body: JSON.stringify({
 					success: true,
 					data: {
-						payment_url: responseData.redirect_url,
+						token: responseData.token,
+						redirect_url: responseData.redirect_url,
 						order_id: orderId,
 						amount: finalAmount
 					}
@@ -92,11 +110,12 @@ exports.handler = async function(event, context) {
 			headers,
 			body: JSON.stringify({
 				success: false,
-				error: 'Failed to create payment',
+				error: 'Failed to generate payment token',
 				details: responseData
 			})
 		};
 	} catch (error) {
+		console.error('�� ERROR:', error);
 		return {
 			statusCode: 500,
 			headers,
