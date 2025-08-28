@@ -1,12 +1,10 @@
 // netlify/functions/midtrans-token.js
 exports.handler = async function(event, context) {
-	// CORS headers + CSP headers
+	// CORS headers
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'Content-Type',
-		'Access-Control-Allow-Methods': 'POST, OPTIONS',
-		// Daha esnek CSP
-		'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; frame-src *; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;"
+		'Access-Control-Allow-Methods': 'POST, OPTIONS'
 	};
 
 	// Preflight
@@ -67,6 +65,14 @@ exports.handler = async function(event, context) {
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
+		// 🔍 DEBUG LOG'LAR
+		console.log('🔍 DEBUG - Amount:', finalAmount);
+		console.log('🔍 DEBUG - Item:', item_name);
+		console.log('🔍 DEBUG - Order ID:', orderId);
+		console.log('🔍 DEBUG - Midtrans Params:', JSON.stringify(midtransParams, null, 2));
+		console.log('�� DEBUG - API URL:', apiUrl);
+		console.log('�� DEBUG - Server Key:', serverKey);
+
 		const response = await fetch(apiUrl, {
 			method: 'POST',
 			headers: {
@@ -78,6 +84,10 @@ exports.handler = async function(event, context) {
 		});
 
 		const responseData = await response.json();
+		
+		// 🔍 DEBUG - Midtrans Response
+		console.log('🔍 DEBUG - Midtrans Response Status:', response.status);
+		console.log('🔍 DEBUG - Midtrans Response Data:', JSON.stringify(responseData, null, 2));
 
 		if (response.ok && responseData.token) {
 			return {
@@ -105,6 +115,7 @@ exports.handler = async function(event, context) {
 			})
 		};
 	} catch (error) {
+		console.error('�� ERROR:', error);
 		return {
 			statusCode: 500,
 			headers,
