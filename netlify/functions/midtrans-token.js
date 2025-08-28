@@ -37,7 +37,7 @@ exports.handler = async function(event, context) {
 		// Order id
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Midtrans params
+		// Midtrans params - Sadece kart ödemesi göster
 		const midtransParams = {
 			transaction_details: {
 				order_id: orderId,
@@ -55,7 +55,9 @@ exports.handler = async function(event, context) {
 				first_name: 'Customer',
 				email: 'customer@example.com',
 				phone: '08123456789'
-			}
+			},
+			// Sadece kart ödemesi aktif - diğer yöntemler gizli
+			enabled_payments: ['credit_card']
 		};
 
 		// Sandbox endpoint + TEST SERVER KEY
