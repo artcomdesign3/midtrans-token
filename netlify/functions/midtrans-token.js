@@ -32,7 +32,7 @@ exports.handler = async function(event, context) {
 
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-		// Payment Link API parametreleri
+		// Payment Link API parametreleri - DÜZELTİLDİ
 		const paymentLinkParams = {
 			transaction_details: {
 				order_id: orderId,
@@ -52,19 +52,16 @@ exports.handler = async function(event, context) {
 				phone: '08123456789'
 			},
 			// Sadece kart ödemesi
-			enabled_payments: ['credit_card'],
-			// Payment Link ayarları
-			usage_limit: 1,
-			expiry: {
-				unit: 'minutes',
-				duration: 60
-			}
+			enabled_payments: ['credit_card']
 		};
 
-		// Payment Link API endpoint
-		const apiUrl = 'https://api.midtrans.com/v2/gotransaction';
+		// �� DOĞRU Payment Link API endpoint
+		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
+
+		console.log('�� DEBUG - API URL:', apiUrl);
+		console.log('🔍 DEBUG - Params:', JSON.stringify(paymentLinkParams, null, 2));
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -77,6 +74,9 @@ exports.handler = async function(event, context) {
 		});
 
 		const responseData = await response.json();
+		
+		console.log('🔍 DEBUG - Response Status:', response.status);
+		console.log('🔍 DEBUG - Response Data:', JSON.stringify(responseData, null, 2));
 
 		if (response.ok && responseData.redirect_url) {
 			return {
@@ -103,6 +103,7 @@ exports.handler = async function(event, context) {
 			})
 		};
 	} catch (error) {
+		console.error('�� ERROR:', error);
 		return {
 			statusCode: 500,
 			headers,
