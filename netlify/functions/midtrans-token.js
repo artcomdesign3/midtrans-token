@@ -1,29 +1,32 @@
 // netlify/functions/midtrans-token.js
 exports.handler = async function(event, context) {
-	// 🔧 ENHANCED CORS HEADERS - Fix for preflight
+	// 🔧 COMPREHENSIVE CORS HEADERS
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
-		'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With',
-		'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
-		'Access-Control-Max-Age': '86400', // 24 hours cache
-		'Content-Type': 'application/json'
+		'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin',
+		'Access-Control-Allow-Methods': 'POST, OPTIONS, GET, PUT, DELETE',
+		'Access-Control-Max-Age': '86400',
+		'Content-Type': 'application/json',
+		'Vary': 'Origin, Access-Control-Request-Headers'
 	};
 
-	// 🚀 PREFLIGHT CORS REQUEST HANDLER
+	console.log('🚀 FUNCTION CALLED - Method:', event.httpMethod);
+	console.log('🌐 Origin:', event.headers.origin || 'No origin');
+	console.log('🔧 Headers:', JSON.stringify(event.headers, null, 2));
+
+	// 🚀 HANDLE ALL PREFLIGHT REQUESTS
 	if (event.httpMethod === 'OPTIONS') {
-		console.log('🔄 CORS Preflight request received');
-		console.log('🌐 Origin:', event.headers.origin || 'No origin');
-		console.log('🔧 Method:', event.headers['access-control-request-method'] || 'No method');
-		console.log('📋 Headers:', event.headers['access-control-request-headers'] || 'No headers');
-		
+		console.log('✅ CORS Preflight - returning 200');
 		return { 
 			statusCode: 200, 
 			headers,
-			body: JSON.stringify({ message: 'CORS preflight OK' })
+			body: JSON.stringify({ message: 'CORS preflight successful' })
 		};
 	}
 
+	// 🚀 HANDLE NON-POST REQUESTS
 	if (event.httpMethod !== 'POST') {
+		console.log('❌ Method not allowed:', event.httpMethod);
 		return {
 			statusCode: 405,
 			headers,
@@ -32,22 +35,16 @@ exports.handler = async function(event, context) {
 	}
 
 	try {
-		const { amount, item_name, php_webhook_url, auto_redirect, referrer, user_agent } = JSON.parse(event.body || '{}');
+		console.log('📦 Request body:', event.body);
+		
+		const { amount, item_name, php_webhook_url, auto_redirect, referrer, user_agent, origin } = JSON.parse(event.body || '{}');
 		const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
 		
-		// 🔍 DETAILED REQUEST LOGGING
-		console.log('📡 NETLIFY FUNCTION CALLED');
-		console.log('🔍 Request Headers:', JSON.stringify(event.headers, null, 2));
-		console.log('📦 Request Body:', event.body);
-		console.log('💰 Parsed Amount:', finalAmount);
-		console.log('🏷️ Item Name:', item_name);
-		console.log('🔗 PHP Webhook:', php_webhook_url);
-		console.log('🚀 Auto Redirect:', auto_redirect);
-		console.log('📍 Referrer:', referrer);
-		console.log('🌐 User Agent:', user_agent);
+		console.log('💰 Parsed amount:', finalAmount);
+		console.log('🏷️ Item name:', item_name);
 		
 		if (!finalAmount || finalAmount <= 0) {
-			console.error('❌ INVALID AMOUNT ERROR:', finalAmount, 'from original:', amount);
+			console.error('❌ Invalid amount:', finalAmount);
 			return {
 				statusCode: 400,
 				headers,
@@ -60,14 +57,11 @@ exports.handler = async function(event, context) {
 			};
 		}
 
-		// Unique order ID with timestamp
+		// Generate order ID
 		const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+		console.log('🎯 Generated order ID:', orderId);
 
-		console.log('🔥 PRODUCTION MODE ACTIVATED');
-		console.log('🎯 Generated Order ID:', orderId);
-		console.log('💰 Final Amount:', finalAmount, 'IDR');
-
-		// 🎯 DETAILED PHP NOTIFICATION
+		// Send notification to PHP
 		const notificationPayload = {
 			event: 'payment_initiated',
 			order_id: orderId,
@@ -79,44 +73,40 @@ exports.handler = async function(event, context) {
 			request_details: {
 				referrer: referrer,
 				user_agent: user_agent,
+				origin: origin,
 				ip: event.headers['client-ip'] || event.headers['x-forwarded-for'] || 'unknown'
 			}
 		};
 
-		console.log('📤 Sending to PHP:', JSON.stringify(notificationPayload, null, 2));
+		console.log('📤 Sending to PHP:', php_webhook_url);
+		
+		let phpResult = { skipped: true };
+		if (php_webhook_url && php_webhook_url !== 'https://your-php-project.com/webhook/midtrans.php') {
+			try {
+				const phpResponse = await fetch(php_webhook_url, {
+					method: 'POST',
+					headers: { 
+						'Content-Type': 'application/json',
+						'User-Agent': 'Netlify-Function/1.0'
+					},
+					body: JSON.stringify(notificationPayload)
+				});
+				phpResult = await phpResponse.json();
+				console.log('✅ PHP response:', phpResult);
+			} catch (phpError) {
+				console.log('🚨 PHP failed:', phpError.message);
+				phpResult = { error: phpError.message };
+			}
+		}
 
-		const notificationCall = php_webhook_url ? 
-			fetch(php_webhook_url, {
-				method: 'POST',
-				headers: { 
-					'Content-Type': 'application/json',
-					'User-Agent': 'Netlify-Function/1.0'
-				},
-				body: JSON.stringify(notificationPayload)
-			})
-			.then(phpRes => phpRes.json())
-			.then(phpData => {
-				console.log('✅ PHP Response:', JSON.stringify(phpData, null, 2));
-				return phpData;
-			})
-			.catch(err => {
-				console.log('🚨 PHP webhook failed:', err.message);
-				return { error: err.message };
-			})
-			: Promise.resolve({ skipped: true });
-
-		// Wait for PHP notification before proceeding
-		const phpResult = await notificationCall;
-		console.log('📨 PHP Notification Result:', phpResult);
-
-		// Midtrans production parameters
+		// Midtrans API call
 		const midtransParams = {
 			transaction_details: {
 				order_id: orderId,
 				gross_amount: finalAmount
 			},
 			credit_card: {
-				secure: true  // 3D-Secure authentication
+				secure: true
 			},
 			item_details: [
 				{
@@ -132,7 +122,6 @@ exports.handler = async function(event, context) {
 				email: 'customer@example.com',
 				phone: '08123456789'
 			},
-			// Production için tüm payment methods aktif
 			enabled_payments: [
 				'credit_card',
 				'gopay', 
@@ -146,7 +135,6 @@ exports.handler = async function(event, context) {
 				'bri_va',
 				'other_va'
 			],
-			// Expiry 24 hours
 			expiry: {
 				start_time: new Date().toISOString(),
 				unit: "hour",
@@ -154,19 +142,11 @@ exports.handler = async function(event, context) {
 			}
 		};
 
-		// PRODUCTION ayarları
 		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
 		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
 		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-		// PRODUCTION ayarları
-		const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
-		const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
-		const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
-
-		console.log('🔗 Midtrans API URL:', apiUrl);
-		console.log('🔑 Auth Header Length:', authHeader.length);
-		console.log('📋 Midtrans Payload:', JSON.stringify(midtransParams, null, 2));
+		console.log('🔗 Calling Midtrans API...');
 
 		const response = await fetch(apiUrl, {
 			method: 'POST',
@@ -181,18 +161,12 @@ exports.handler = async function(event, context) {
 
 		const responseData = await response.json();
 		
-		console.log('📡 MIDTRANS API RESPONSE:');
-		console.log('  - Status Code:', response.status);
-		console.log('  - Status Text:', response.statusText);
-		console.log('  - Headers:', Object.fromEntries([...response.headers.entries()]));
-		console.log('  - Response Data:', JSON.stringify(responseData, null, 2));
+		console.log('📡 Midtrans response status:', response.status);
+		console.log('📡 Midtrans response:', JSON.stringify(responseData, null, 2));
 
 		if (response.ok && responseData.token) {
-			console.log('✅ MIDTRANS SUCCESS - TOKEN GENERATED');
-			console.log('🎯 Token:', responseData.token);
-			console.log('🔗 Redirect URL:', responseData.redirect_url);
+			console.log('✅ Success - token generated');
 			
-			// 🚀 OTOMATIK REDIRECT IÇIN BOTH TOKEN VE REDIRECT_URL DÖNDER
 			const successResponse = {
 				success: true,
 				data: {
@@ -201,12 +175,10 @@ exports.handler = async function(event, context) {
 					order_id: orderId,
 					amount: finalAmount,
 					auto_redirect: auto_redirect || false,
-					midtrans_response: responseData, // 🔍 FULL MIDTRANS RESPONSE
-					php_notification: phpResult // 🔍 PHP RESPONSE
+					midtrans_response: responseData,
+					php_notification: phpResult
 				}
 			};
-			
-			console.log('📤 FINAL SUCCESS RESPONSE:', JSON.stringify(successResponse, null, 2));
 			
 			return {
 				statusCode: 200,
@@ -214,9 +186,7 @@ exports.handler = async function(event, context) {
 				body: JSON.stringify(successResponse)
 			};
 		} else {
-			console.error('❌ MIDTRANS API ERROR:');
-			console.error('  - Status:', response.status);
-			console.error('  - Response:', JSON.stringify(responseData, null, 2));
+			console.error('❌ Midtrans error:', responseData);
 			
 			return {
 				statusCode: 400,
@@ -233,23 +203,8 @@ exports.handler = async function(event, context) {
 				})
 			};
 		}
-
-		return {
-			statusCode: 400,
-			headers,
-			body: JSON.stringify({
-				success: false,
-				error: 'Failed to generate payment token',
-				details: responseData
-			})
-		};
 	} catch (error) {
-		console.error('🚨 NETLIFY FUNCTION ERROR - FULL DETAILS:');
-		console.error('  - Error Message:', error.message);
-		console.error('  - Error Stack:', error.stack);
-		console.error('  - Request Body:', event.body);
-		console.error('  - Timestamp:', new Date().toISOString());
-		
+		console.error('🚨 Function error:', error);
 		return {
 			statusCode: 500,
 			headers,
