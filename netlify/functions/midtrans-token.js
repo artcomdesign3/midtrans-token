@@ -99,6 +99,13 @@ exports.handler = async function(event, context) {
 			}
 		}
 
+		// 🔧 Generate proper Midtrans date format: yyyy-MM-dd hh:mm:ss Z
+		const now = new Date();
+		const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7 for Jakarta
+		const midtransDate = jakartaTime.toISOString().slice(0, 19).replace('T', ' ') + ' +0700';
+		
+		console.log('📅 Midtrans date format:', midtransDate);
+
 		// Midtrans API call
 		const midtransParams = {
 			transaction_details: {
@@ -135,8 +142,9 @@ exports.handler = async function(event, context) {
 				'bri_va',
 				'other_va'
 			],
+			// ✅ CORRECT Midtrans date format
 			expiry: {
-				start_time: new Date().toISOString(),
+				start_time: midtransDate,
 				unit: "hour",
 				duration: 24
 			}
