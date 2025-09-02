@@ -1,13 +1,26 @@
 // netlify/functions/midtrans-token.js
 exports.handler = async function(event, context) {
+	// 🔧 ENHANCED CORS HEADERS - Fix for preflight
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
-		'Access-Control-Allow-Headers': 'Content-Type',
-		'Access-Control-Allow-Methods': 'POST, OPTIONS'
+		'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With',
+		'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
+		'Access-Control-Max-Age': '86400', // 24 hours cache
+		'Content-Type': 'application/json'
 	};
 
+	// 🚀 PREFLIGHT CORS REQUEST HANDLER
 	if (event.httpMethod === 'OPTIONS') {
-		return { statusCode: 200, headers, body: '' };
+		console.log('🔄 CORS Preflight request received');
+		console.log('🌐 Origin:', event.headers.origin || 'No origin');
+		console.log('🔧 Method:', event.headers['access-control-request-method'] || 'No method');
+		console.log('📋 Headers:', event.headers['access-control-request-headers'] || 'No headers');
+		
+		return { 
+			statusCode: 200, 
+			headers,
+			body: JSON.stringify({ message: 'CORS preflight OK' })
+		};
 	}
 
 	if (event.httpMethod !== 'POST') {
