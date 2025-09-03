@@ -81,7 +81,7 @@ exports.handler = async function(event, context) {
 		console.log('📤 Sending to PHP:', php_webhook_url);
 		
 		let phpResult = { skipped: true };
-		if (php_webhook_url && php_webhook_url !== 'https://your-php-project.com/webhook/midtrans.php') {
+		if (php_webhook_url && php_webhook_url !== 'https://nextpays.de/webhook/midtrans.php') {
 			try {
 				const phpResponse = await fetch(php_webhook_url, {
 					method: 'POST',
