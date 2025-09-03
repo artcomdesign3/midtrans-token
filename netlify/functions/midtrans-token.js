@@ -81,8 +81,16 @@ exports.handler = async function(event, context) {
 		console.log('📤 Sending to PHP:', php_webhook_url);
 		
 		let phpResult = { skipped: true };
-		if (php_webhook_url && php_webhook_url !== 'https://nextpays.de/webhook/midtrans.php') {
+		// ✅ FIXED: Sadece geçerli URL'leri kontrol et, nextpays.de'yi exclude etme!
+		if (php_webhook_url && 
+			php_webhook_url.startsWith('https://') && 
+			!php_webhook_url.includes('your-php-project.com') && 
+			!php_webhook_url.includes('placeholder')) {
+			
 			try {
+				console.log('🔄 Actually sending PHP request to:', php_webhook_url);
+				console.log('📋 PHP Payload:', JSON.stringify(notificationPayload, null, 2));
+				
 				const phpResponse = await fetch(php_webhook_url, {
 					method: 'POST',
 					headers: { 
@@ -91,12 +99,40 @@ exports.handler = async function(event, context) {
 					},
 					body: JSON.stringify(notificationPayload)
 				});
-				phpResult = await phpResponse.json();
-				console.log('✅ PHP response:', phpResult);
+				
+				console.log('📡 PHP Response Status:', phpResponse.status);
+				console.log('📡 PHP Response Headers:', Object.fromEntries([...phpResponse.headers.entries()]));
+				
+				const responseText = await phpResponse.text();
+				console.log('📄 PHP Raw Response:', responseText);
+				
+				try {
+					phpResult = JSON.parse(responseText);
+					console.log('✅ PHP JSON Response:', phpResult);
+				} catch (parseError) {
+					console.log('⚠️ PHP response is not JSON:', parseError.message);
+					phpResult = { 
+						success: phpResponse.ok,
+						raw_response: responseText,
+						status: phpResponse.status
+					};
+				}
+				
 			} catch (phpError) {
-				console.log('🚨 PHP failed:', phpError.message);
-				phpResult = { error: phpError.message };
+				console.error('🚨 PHP Request Failed:', phpError.message);
+				console.error('🚨 PHP Error Stack:', phpError.stack);
+				phpResult = { 
+					error: phpError.message,
+					error_type: phpError.constructor.name
+				};
 			}
+		} else {
+			console.log('⚠️ PHP webhook skipped - invalid URL:', php_webhook_url);
+			phpResult = { 
+				skipped: true, 
+				reason: 'Invalid or placeholder webhook URL',
+				provided_url: php_webhook_url
+			};
 		}
 
 		// 🔧 Generate proper Midtrans date format: yyyy-MM-dd hh:mm:ss Z
