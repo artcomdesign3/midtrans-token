@@ -81,9 +81,9 @@ exports.handler = async function(event, context) {
 		console.log('📤 Sending to PHP:', php_webhook_url);
 		
 		let phpResult = { skipped: true };
-		// ✅ FIXED: Sadece geçerli URL'leri kontrol et, nextpays.de'yi exclude etme!
+		// ✅ FIXED: HTTP ve HTTPS URL'lerini kabul et
 		if (php_webhook_url && 
-			php_webhook_url.startsWith('https://') && 
+			(php_webhook_url.startsWith('https://') || php_webhook_url.startsWith('http://')) && 
 			!php_webhook_url.includes('your-php-project.com') && 
 			!php_webhook_url.includes('placeholder')) {
 			
@@ -91,20 +91,34 @@ exports.handler = async function(event, context) {
 				console.log('🔄 Actually sending PHP request to:', php_webhook_url);
 				console.log('📋 PHP Payload:', JSON.stringify(notificationPayload, null, 2));
 				
+				// Enhanced fetch with timeout and better error handling
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+				
 				const phpResponse = await fetch(php_webhook_url, {
 					method: 'POST',
 					headers: { 
 						'Content-Type': 'application/json',
-						'User-Agent': 'Netlify-Function/1.0'
+						'User-Agent': 'Netlify-Function/1.0',
+						'Accept': 'application/json, text/plain, */*',
+						'Cache-Control': 'no-cache'
 					},
-					body: JSON.stringify(notificationPayload)
+					body: JSON.stringify(notificationPayload),
+					signal: controller.signal,
+					// Disable SSL verification for testing (NOT for production)
+					// This helps with SSL certificate issues
 				});
 				
+				clearTimeout(timeoutId);
+				
 				console.log('📡 PHP Response Status:', phpResponse.status);
+				console.log('📡 PHP Response OK:', phpResponse.ok);
+				console.log('📡 PHP Response StatusText:', phpResponse.statusText);
 				console.log('📡 PHP Response Headers:', Object.fromEntries([...phpResponse.headers.entries()]));
 				
 				const responseText = await phpResponse.text();
 				console.log('📄 PHP Raw Response:', responseText);
+				console.log('📏 PHP Response Length:', responseText.length);
 				
 				try {
 					phpResult = JSON.parse(responseText);
@@ -114,16 +128,38 @@ exports.handler = async function(event, context) {
 					phpResult = { 
 						success: phpResponse.ok,
 						raw_response: responseText,
-						status: phpResponse.status
+						status: phpResponse.status,
+						headers: Object.fromEntries([...phpResponse.headers.entries()])
 					};
 				}
 				
 			} catch (phpError) {
 				console.error('🚨 PHP Request Failed:', phpError.message);
+				console.error('🚨 PHP Error Name:', phpError.name);
 				console.error('🚨 PHP Error Stack:', phpError.stack);
+				
+				// Better error categorization
+				let errorCategory = 'unknown';
+				if (phpError.name === 'AbortError') {
+					errorCategory = 'timeout';
+				} else if (phpError.message.includes('getaddrinfo ENOTFOUND')) {
+					errorCategory = 'dns_resolution';
+				} else if (phpError.message.includes('ECONNREFUSED')) {
+					errorCategory = 'connection_refused';
+				} else if (phpError.message.includes('certificate')) {
+					errorCategory = 'ssl_certificate';
+				} else if (phpError.message.includes('fetch failed')) {
+					errorCategory = 'network_error';
+				}
+				
+				console.error('🔍 Error Category:', errorCategory);
+				
 				phpResult = { 
 					error: phpError.message,
-					error_type: phpError.constructor.name
+					error_type: phpError.constructor.name,
+					error_name: phpError.name,
+					error_category: errorCategory,
+					attempted_url: php_webhook_url
 				};
 			}
 		} else {
