@@ -2,48 +2,88 @@
 const crypto = require('crypto');
 
 /**
- * NextPay v3.0 - Encrypted Token System
- * Netlify Function with Token Decryption & 15-min Expiry
+ * NextPay Secure Decryption System - JavaScript
+ * AES-256-GCM with Authentication
  */
-
-// Encryption/Decryption functions (must match PHP)
-class PaymentEncryption {
-    static key = 'NextPay2025-SecurePayment-System-Key-v3.0'; // Must match PHP
-    static method = 'aes-256-cbc';
+class SecurePaymentDecryption {
+    static masterKey = 'NextPay2025-UltraSecure-MasterKey-AES256-GCM-Authentication-System';
     
-    static encrypt(data) {
-        const key = crypto.createHash('sha256').update(this.key).digest();
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipher(this.method, key, iv);
-        
-        let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
-        encrypted += cipher.final('base64');
-        
-        // Prepend IV and encode
-        return Buffer.concat([iv, Buffer.from(encrypted, 'base64')]).toString('base64');
-    }
-    
-    static decrypt(encryptedData) {
+    /**
+     * Decrypt user data with AES-256-GCM
+     */
+    static decryptUserData(encryptedToken) {
         try {
-            const key = crypto.createHash('sha256').update(this.key).digest();
-            const data = Buffer.from(encryptedData, 'base64');
+            // Generate same 256-bit key
+            const key = crypto.createHash('sha256').update(this.masterKey).digest();
             
-            if (data.length < 16) {
-                return null;
+            // Restore base64 padding and decode
+            const paddedToken = encryptedToken.replace(/-/g, '+').replace(/_/g, '/');
+            const finalToken = paddedToken + '='.repeat((4 - paddedToken.length % 4) % 4);
+            const combined = Buffer.from(finalToken, 'base64');
+            
+            if (combined.length < 28) { // 12 IV + 16 tag + data
+                throw new Error('Invalid token format');
             }
             
-            const iv = data.slice(0, 16);
-            const encrypted = data.slice(16);
+            // Extract components
+            const iv = combined.slice(0, 12);        // 96-bit IV
+            const tag = combined.slice(12, 28);      // 128-bit authentication tag
+            const encrypted = combined.slice(28);    // Encrypted data
             
-            const decipher = crypto.createDecipheriv(this.method, key, iv);
+            // Decrypt with AES-256-GCM
+            const decipher = crypto.createDecipherGCM('aes-256-gcm');
+            decipher.setAuthTag(tag);
+            
             let decrypted = decipher.update(encrypted, null, 'utf8');
             decrypted += decipher.final('utf8');
             
-            return JSON.parse(decrypted);
+            // Parse JSON
+            const dataWithSecurity = JSON.parse(decrypted);
+            
+            // Verify structure
+            if (!dataWithSecurity.user_data || !dataWithSecurity.expires_at) {
+                throw new Error('Invalid token structure');
+            }
+            
+            // Check expiry
+            if (Date.now() / 1000 > dataWithSecurity.expires_at) {
+                throw new Error('Token has expired');
+            }
+            
+            // Verify checksum
+            const expectedChecksum = crypto.createHash('sha256').update(JSON.stringify(dataWithSecurity.user_data)).digest('hex');
+            if (!dataWithSecurity.checksum || dataWithSecurity.checksum !== expectedChecksum) {
+                throw new Error('Data integrity check failed');
+            }
+            
+            return dataWithSecurity.user_data;
+            
         } catch (error) {
-            console.error('Decryption error:', error);
+            console.error('Decryption Error:', error.message);
             return null;
         }
+    }
+    
+    /**
+     * Validate and extract order data from token
+     */
+    static validateAndExtractOrder(token) {
+        const userData = this.decryptUserData(token);
+        
+        if (!userData) {
+            return null;
+        }
+        
+        // Validate required fields
+        const requiredFields = ['order_number', 'amount_tl', 'amount_idr', 'user_name', 'firm_id'];
+        for (const field of requiredFields) {
+            if (!userData[field]) {
+                console.error(`Missing required field: ${field}`);
+                return null;
+            }
+        }
+        
+        return userData;
     }
 }
 
@@ -58,22 +98,15 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 NextPay v3.0 Function Called - Method:', event.httpMethod);
-    console.log('🌐 Origin:', event.headers.origin || 'No origin');
+    console.log('🚀 NextPay Secure Function Called - Method:', event.httpMethod);
 
     // HANDLE PREFLIGHT REQUESTS
     if (event.httpMethod === 'OPTIONS') {
-        console.log('✅ CORS Preflight - returning 200');
-        return { 
-            statusCode: 200, 
-            headers,
-            body: JSON.stringify({ message: 'CORS preflight successful' })
-        };
+        return { statusCode: 200, headers, body: JSON.stringify({ message: 'CORS preflight successful' }) };
     }
 
     // HANDLE NON-POST REQUESTS
     if (event.httpMethod !== 'POST') {
-        console.log('❌ Method not allowed:', event.httpMethod);
         return {
             statusCode: 405,
             headers,
@@ -82,17 +115,15 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        console.log('📦 Request body:', event.body);
-        
         const requestData = JSON.parse(event.body || '{}');
         
         // 🔐 CHECK IF THIS IS A TOKEN DECRYPTION REQUEST
         if (requestData.encrypted_token && requestData.action === 'decrypt_and_process') {
-            console.log('🔓 TOKEN DECRYPTION REQUEST DETECTED');
-            return await handleTokenDecryption(requestData, headers);
+            console.log('🔓 SECURE TOKEN DECRYPTION REQUEST');
+            return await handleSecureTokenDecryption(requestData, headers);
         }
         
-        // 💳 REGULAR MIDTRANS PAYMENT REQUEST (backward compatibility + new encrypted)
+        // 💳 REGULAR MIDTRANS PAYMENT REQUEST
         return await handleMidtransPayment(requestData, headers);
 
     } catch (error) {
@@ -103,56 +134,40 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({
                 success: false,
                 error: 'Internal server error',
-                message: error.message,
-                debug_info: {
-                    timestamp: new Date().toISOString(),
-                    request_body: event.body
-                }
+                message: error.message
             })
         };
     }
 };
 
 /**
- * Handle Token Decryption
+ * Handle Secure Token Decryption
  */
-async function handleTokenDecryption(requestData, headers) {
-    console.log('🔐 Starting token decryption...');
+async function handleSecureTokenDecryption(requestData, headers) {
+    console.log('🔐 Starting secure token decryption...');
     
     const { encrypted_token, referrer, user_agent, origin } = requestData;
     
     // Decrypt the token
-    const decryptedData = PaymentEncryption.decrypt(encrypted_token);
+    const decryptedData = SecurePaymentDecryption.validateAndExtractOrder(encrypted_token);
     
     if (!decryptedData) {
-        console.error('❌ Token decryption failed');
+        console.error('❌ Secure token decryption failed');
         return {
             statusCode: 400,
             headers,
             body: JSON.stringify({
                 success: false,
-                error: 'Token decryption failed',
-                code: 'DECRYPTION_ERROR'
+                error: 'Secure token decryption failed',
+                code: 'SECURE_DECRYPTION_ERROR'
             })
         };
     }
     
-    console.log('✅ Token decrypted successfully:', decryptedData);
-    
-    // Validate token expiry
-    const now = Math.floor(Date.now() / 1000);
-    if (decryptedData.expires_at && now > decryptedData.expires_at) {
-        console.error('❌ Token has expired');
-        return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({
-                success: false,
-                error: 'Payment token has expired',
-                code: 'TOKEN_EXPIRED'
-            })
-        };
-    }
+    console.log('✅ Secure token decrypted successfully');
+    console.log('🔍 Decrypted order:', decryptedData.order_number);
+    console.log('💰 Amount IDR:', decryptedData.amount_idr);
+    console.log('👤 User:', decryptedData.user_name);
     
     // Return decrypted token data
     return {
@@ -160,17 +175,17 @@ async function handleTokenDecryption(requestData, headers) {
         headers,
         body: JSON.stringify({
             success: true,
-            action: 'token_decrypted',
-            message: 'Token decrypted successfully',
+            action: 'secure_token_decrypted',
+            message: 'Secure token decrypted successfully',
             data: {
-                order_id: decryptedData.order_id,
+                order_id: decryptedData.order_number,
                 amount_idr: decryptedData.amount_idr,
                 amount_tl: decryptedData.amount_tl,
-                user: decryptedData.user,
+                user: decryptedData.user_name,
                 firm_id: decryptedData.firm_id,
-                timestamp: decryptedData.timestamp,
-                expires_at: decryptedData.expires_at,
-                hash: decryptedData.hash
+                exchange_rate: decryptedData.exchange_rate,
+                ip_address: decryptedData.ip_address,
+                all_data: decryptedData  // Full decrypted data
             }
         })
     });
@@ -190,44 +205,35 @@ async function handleMidtransPayment(requestData, headers) {
         referrer,
         user_agent,
         origin,
-        encrypted_order_token,  // NEW: For encrypted orders
-        order_id_from_token     // NEW: Original order ID from token
+        encrypted_order_token,
+        order_id_from_token,
+        decrypted_user_data  // NEW: Full user data from decrypted token
     } = requestData;
     
     let finalAmount, finalItemName, orderId;
     
     // Determine if this is encrypted order or regular order
     if (encrypted_order_token && order_id_from_token) {
-        // 🔐 ENCRYPTED ORDER PROCESSING
-        console.log('🔐 Processing encrypted order');
+        console.log('🔐 Processing encrypted order with full user data');
         
         finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
         finalItemName = item_name || 'Secure Payment';
-        
-        // Use a combination for Midtrans order ID
         orderId = `${order_id_from_token}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         
         console.log('🔐 Encrypted Order Details:');
         console.log('  - Original Order ID:', order_id_from_token);
         console.log('  - Midtrans Order ID:', orderId);
         console.log('  - Amount IDR:', finalAmount);
-        console.log('  - Token Length:', encrypted_order_token.length);
         
     } else {
-        // 📝 REGULAR ORDER PROCESSING (backward compatibility)
         console.log('📝 Processing regular order (backward compatibility)');
         
         finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
         finalItemName = item_name || 'Product';
         orderId = `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        
-        console.log('📝 Regular Order Details:');
-        console.log('  - Generated Order ID:', orderId);
-        console.log('  - Amount IDR:', finalAmount);
     }
     
     if (!finalAmount || finalAmount <= 0) {
-        console.error('❌ Invalid amount:', finalAmount);
         return {
             statusCode: 400,
             headers,
@@ -249,27 +255,22 @@ async function handleMidtransPayment(requestData, headers) {
         status: 'PENDING',
         auto_redirect: auto_redirect || false,
         timestamp: new Date().toISOString(),
-        // 🔐 CRITICAL: Include encrypted token for matching
         encrypted_token: encrypted_order_token || null,
         original_order_id: order_id_from_token || null,
+        decrypted_user_data: decrypted_user_data || null,  // NEW: Include full user data
         request_details: {
             referrer: referrer,
             user_agent: user_agent,
             origin: origin,
-            ip: event.headers['client-ip'] || event.headers['x-forwarded-for'] || 'unknown'
+            ip: 'unknown'
         }
     };
 
-    console.log('📤 Sending to PHP:', php_webhook_url);
-    
+    // Send to PHP webhook if provided
     let phpResult = { skipped: true };
-    
-    if (php_webhook_url && 
-        (php_webhook_url.startsWith('https://') || php_webhook_url.startsWith('http://')) && 
-        !php_webhook_url.includes('placeholder')) {
-        
+    if (php_webhook_url && php_webhook_url.startsWith('http')) {
         try {
-            console.log('📤 Sending PHP notification...');
+            console.log('📤 Sending to PHP webhook...');
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -278,8 +279,7 @@ async function handleMidtransPayment(requestData, headers) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'NextPay-v3.0-Netlify-Function',
-                    'Accept': 'application/json, text/plain, */*'
+                    'User-Agent': 'NextPay-Secure-Netlify-Function'
                 },
                 body: JSON.stringify(notificationPayload),
                 signal: controller.signal
@@ -287,14 +287,11 @@ async function handleMidtransPayment(requestData, headers) {
             
             clearTimeout(timeoutId);
             
-            console.log('📡 PHP Response Status:', phpResponse.status);
-            
             const responseText = await phpResponse.text();
-            console.log('📄 PHP Response:', responseText);
+            console.log('📡 PHP Response:', responseText);
             
             try {
                 phpResult = JSON.parse(responseText);
-                console.log('✅ PHP JSON Response:', phpResult);
             } catch (parseError) {
                 phpResult = { 
                     success: phpResponse.ok,
@@ -305,23 +302,15 @@ async function handleMidtransPayment(requestData, headers) {
             
         } catch (phpError) {
             console.error('🚨 PHP Request Failed:', phpError.message);
-            phpResult = { 
-                error: phpError.message,
-                error_type: phpError.constructor.name
-            };
+            phpResult = { error: phpError.message };
         }
-    } else {
-        console.log('⚠️ PHP webhook skipped - invalid URL');
-        phpResult = { skipped: true, reason: 'Invalid webhook URL' };
     }
 
     // 🕐 Generate Midtrans date format with 15-minute expiry
     const now = new Date();
-    const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7
+    const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
     const midtransDate = jakartaTime.toISOString().slice(0, 19).replace('T', ' ') + ' +0700';
     
-    console.log('🕐 Midtrans date format:', midtransDate);
-
     // 💳 Midtrans API call with 15-minute expiry
     const midtransParams = {
         transaction_details: {
@@ -346,23 +335,13 @@ async function handleMidtransPayment(requestData, headers) {
             phone: '08123456789'
         },
         enabled_payments: [
-            'credit_card',
-            'gopay', 
-            'shopeepay',
-            'other_qris',
-            'bank_transfer',
-            'echannel',
-            'permata_va',
-            'bca_va',
-            'bni_va',
-            'bri_va',
-            'other_va'
+            'credit_card', 'gopay', 'shopeepay', 'other_qris',
+            'bank_transfer', 'echannel', 'permata_va', 'bca_va', 'bni_va', 'bri_va', 'other_va'
         ],
-        // 🕐 CRITICAL: 15-minute expiry limit
         expiry: {
             start_time: midtransDate,
             unit: "minute",
-            duration: 15  // 15 minutes as requested
+            duration: 15  // 15 minutes
         }
     };
 
@@ -378,7 +357,7 @@ async function handleMidtransPayment(requestData, headers) {
             Accept: 'application/json',
             'Content-Type': 'application/json',
             Authorization: authHeader,
-            'User-Agent': 'NextPay-v3.0-Netlify-Function'
+            'User-Agent': 'NextPay-Secure-Netlify-Function'
         },
         body: JSON.stringify(midtransParams)
     });
@@ -386,35 +365,27 @@ async function handleMidtransPayment(requestData, headers) {
     const responseData = await response.json();
     
     console.log('📡 Midtrans response status:', response.status);
-    console.log('📡 Midtrans response:', JSON.stringify(responseData, null, 2));
 
     if (response.ok && responseData.token) {
         console.log('✅ Success - 15-min expiry token generated');
         
-        const successResponse = {
-            success: true,
-            data: {
-                token: responseData.token,
-                redirect_url: responseData.redirect_url,
-                order_id: orderId,
-                amount: finalAmount,
-                auto_redirect: auto_redirect || false,
-                expiry_duration: '15 minutes',
-                midtrans_response: responseData,
-                php_notification: phpResult,
-                // 🔐 Include encrypted token info if available
-                encrypted_order: encrypted_order_token ? {
-                    has_encrypted_token: true,
-                    original_order_id: order_id_from_token,
-                    token_length: encrypted_order_token.length
-                } : null
-            }
-        };
-        
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify(successResponse)
+            body: JSON.stringify({
+                success: true,
+                data: {
+                    token: responseData.token,
+                    redirect_url: responseData.redirect_url,
+                    order_id: orderId,
+                    amount: finalAmount,
+                    auto_redirect: auto_redirect || false,
+                    expiry_duration: '15 minutes',
+                    midtrans_response: responseData,
+                    php_notification: phpResult,
+                    encryption_status: encrypted_order_token ? 'encrypted' : 'standard'
+                }
+            })
         };
     } else {
         console.error('❌ Midtrans error:', responseData);
@@ -425,13 +396,7 @@ async function handleMidtransPayment(requestData, headers) {
             body: JSON.stringify({
                 success: false,
                 error: 'Failed to generate payment token',
-                details: responseData,
-                debug_info: {
-                    order_id: orderId,
-                    amount: finalAmount,
-                    expiry: '15 minutes',
-                    php_result: phpResult
-                }
+                details: responseData
             })
         };
     }
