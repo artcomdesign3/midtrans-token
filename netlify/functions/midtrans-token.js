@@ -88,7 +88,7 @@ class SecurePaymentDecryption {
 }
 
 exports.handler = async function(event, context) {
-    // FIXED CORS HEADERS FOR NETLIFY
+    // COMPREHENSIVE CORS HEADERS FOR NETLIFY FUNCTIONS
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
@@ -97,11 +97,17 @@ exports.handler = async function(event, context) {
         'Content-Type': 'application/json'
     };
 
-    console.log('🚀 NextPay Secure Function Called - Method:', event.httpMethod);
+    console.log('🚀 NextPay Function Called - Method:', event.httpMethod);
+    console.log('📥 Headers:', event.headers);
 
-    // HANDLE PREFLIGHT REQUESTS
+    // CRITICAL: Handle PREFLIGHT OPTIONS requests first
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: JSON.stringify({ message: 'CORS preflight successful' }) };
+        console.log('✅ Handling OPTIONS preflight request');
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ message: 'CORS preflight successful' }) 
+        };
     }
 
     // HANDLE NON-POST REQUESTS
