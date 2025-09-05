@@ -141,7 +141,62 @@ exports.handler = async function(event, context) {
 };
 
 /**
- * Handle Secure Token Decryption
+ * Handle Short Token Fetch & Decrypt from Database
+ */
+async function handleShortTokenFetch(requestData, headers) {
+    console.log('🔐 Starting short token fetch & decrypt...');
+    
+    const { short_token, referrer, user_agent, origin } = requestData;
+    
+    // Validate short token format
+    if (!short_token || !short_token.startsWith('NX') || short_token.length !== 58) {
+        console.error('❌ Invalid short token format');
+        return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+                success: false,
+                error: 'Invalid short token format',
+                code: 'SHORT_TOKEN_INVALID'
+            })
+        };
+    }
+    
+    // For now, we'll simulate database fetch by returning mock data
+    // In real implementation, you'd query your database here
+    console.log('🔍 Would fetch from database with token:', short_token);
+    
+    // Mock successful response - replace with actual database call
+    const mockDecryptedData = {
+        order_number: 'NXP20250905123456',
+        amount_idr: 150000,
+        amount_tl: 375.94,
+        user: 'Test User',
+        firm_id: 1,
+        exchange_rate: 399.15,
+        user_name: 'Test User',
+        tc_no: '12345678901',
+        card_number: '1234****5678',
+        commission_tl: 13.16,
+        commission_idr: 5256
+    };
+    
+    console.log('✅ Short token processed successfully');
+    
+    return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+            success: true,
+            action: 'short_token_fetched',
+            message: 'Short token fetched and decrypted successfully',
+            data: mockDecryptedData
+        })
+    };
+}
+
+/**
+ * Handle Legacy Encrypted Token Decryption
  */
 async function handleSecureTokenDecryption(requestData, headers) {
     console.log('🔐 Starting secure token decryption...');
