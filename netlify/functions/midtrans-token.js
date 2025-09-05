@@ -88,14 +88,13 @@ class SecurePaymentDecryption {
 }
 
 exports.handler = async function(event, context) {
-    // COMPREHENSIVE CORS HEADERS - FIXED
+    // FIXED CORS HEADERS FOR NETLIFY
     const headers = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin', // REMOVED x-requested-with
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
         'Access-Control-Allow-Methods': 'POST, OPTIONS, GET, PUT, DELETE',
         'Access-Control-Max-Age': '86400',
-        'Content-Type': 'application/json',
-        'Vary': 'Origin, Access-Control-Request-Headers'
+        'Content-Type': 'application/json'
     };
 
     console.log('🚀 NextPay Secure Function Called - Method:', event.httpMethod);
