@@ -1,6 +1,6 @@
-// netlify/functions/midtrans-token.js - WEBHOOK URL ADDED
+// netlify/functions/midtrans-token.js - SMART TOKEN SYSTEM v3.0
 exports.handler = async function(event, context) {
-    // ENHANCED CORS HEADERS - WordPress staging domain eklendi
+    // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin, User-Agent, Referer',
@@ -11,12 +11,10 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 FUNCTION CALLED - Method:', event.httpMethod);
-    console.log('🌍 Origin:', event.headers.origin || 'No origin');
-    console.log('🌍 Host:', event.headers.host);
-    console.log('🌍 User-Agent:', event.headers['user-agent']);
+    console.log('🚀 SMART TOKEN FUNCTION v3.0 - Method:', event.httpMethod);
+    console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
-    // HANDLE ALL PREFLIGHT REQUESTS FIRST
+    // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
         console.log('✅ CORS Preflight - returning 200');
         return { 
@@ -25,12 +23,12 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'webhook_v1.1'
+                function_version: 'smart_token_v3.0'
             })
         };
     }
 
-    // ONLY ALLOW POST REQUESTS
+    // Only allow POST
     if (event.httpMethod !== 'POST') {
         console.log('❌ Method not allowed:', event.httpMethod);
         return {
@@ -45,34 +43,28 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        console.log('📦 Request body length:', (event.body || '').length);
-        
         const requestData = JSON.parse(event.body || '{}');
-        console.log('📦 Request data keys:', Object.keys(requestData));
-        
         const { 
             amount, 
-            item_name, 
-            php_webhook_url, 
+            item_name,
+            order_id,
+            smart_token,
+            decoded_data,
             auto_redirect, 
             referrer, 
             user_agent, 
-            origin,
-            short_token,
-            unique_payment_id,
-            full_decrypted_data
+            origin
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
-        const finalItemName = item_name || 'NextPay Payment';
+        const finalItemName = item_name || 'NextPay Smart Payment';
         
         console.log('💰 Parsed amount:', finalAmount);
-        console.log('🏷️ Item name:', finalItemName);
-        console.log('🎯 Has short_token:', !!short_token);
-        console.log('🎯 Has unique_payment_id:', !!unique_payment_id);
-        console.log('🎯 Has full_decrypted_data:', !!full_decrypted_data);
+        console.log('🎯 Smart token:', smart_token);
+        console.log('🎯 Order ID:', order_id);
+        console.log('🎯 Has decoded data:', !!decoded_data);
         
-        // VALIDATE AMOUNT
+        // Validate amount
         if (!finalAmount || finalAmount <= 0 || finalAmount > 999999999) {
             console.error('❌ Invalid amount:', finalAmount);
             return {
@@ -87,92 +79,42 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // GENERATE UNIQUE ORDER ID
-        const timestamp = Math.floor(Date.now() / 1000);
-        const random = Math.random().toString(36).slice(2, 9).toUpperCase();
-        const baseId = unique_payment_id ? unique_payment_id.slice(-10) : short_token ? short_token.slice(2, 12) : 'DEFAULT';
-        const orderId = `MID_${baseId}_${timestamp}_${random}`;
+        // Validate smart token format
+        const tokenPattern = /^NEXT_([a-f0-9]{10})_(\d{10})_([A-Z0-9]{6})$/;
+        let orderId = order_id || smart_token;
         
-        console.log('🎯 Generated order ID:', orderId);
-
-        // SEND NOTIFICATION TO PHP WEBHOOK
-        let phpResult = { skipped: true };
-        if (php_webhook_url && php_webhook_url.startsWith('https://nextpays.de/')) {
-            const notificationPayload = {
-                event: 'payment_initiated',
-                order_id: orderId,
-                amount: finalAmount,
-                item_name: finalItemName,
-                status: 'PENDING',
-                auto_redirect: auto_redirect || false,
-                timestamp: new Date().toISOString(),
-                timestamp_unix: Math.floor(Date.now() / 1000),
-                short_token: short_token || null,
-                unique_payment_id: unique_payment_id || null,
-                decrypted_user_data: full_decrypted_data || null,
-                request_details: {
-                    referrer: referrer,
-                    user_agent: user_agent,
-                    origin: origin,
-                    ip: event.headers['client-ip'] || event.headers['x-forwarded-for'] || 'netlify_function'
-                }
+        if (!orderId || !tokenPattern.test(orderId)) {
+            console.error('❌ Invalid smart token format:', orderId);
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    error: 'Invalid smart token format. Expected: NEXT_hash_timestamp_random',
+                    received: orderId
+                })
             };
-
-            console.log('📤 Sending to PHP webhook:', php_webhook_url);
-            
-            try {
-                const phpResponse = await fetch(php_webhook_url, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'User-Agent': 'NextPay-Netlify-Function-v1.1'
-                    },
-                    body: JSON.stringify(notificationPayload)
-                });
-                
-                console.log('📡 PHP Response Status:', phpResponse.status);
-                
-                const responseText = await phpResponse.text();
-                console.log('📄 PHP Response length:', responseText.length);
-                
-                try {
-                    phpResult = JSON.parse(responseText);
-                    console.log('✅ PHP JSON Response received');
-                } catch (parseError) {
-                    console.log('⚠️ PHP response is not JSON');
-                    phpResult = { 
-                        success: phpResponse.ok,
-                        raw_response: responseText.substring(0, 200),
-                        status: phpResponse.status
-                    };
-                }
-                
-            } catch (phpError) {
-                console.error('🚨 PHP Request Failed:', phpError.message);
-                phpResult = { 
-                    error: phpError.message,
-                    failed: true
-                };
-            }
-        } else {
-            console.log('⚠️ PHP webhook skipped - not nextpays.de URL');
         }
+        
+        console.log('✅ Smart token validation passed');
+        console.log('🎯 Using order ID:', orderId);
 
-        // GENERATE MIDTRANS DATE FORMAT
+        // Prepare customer details
+        const customer_name = decoded_data?.user_name || 'NextPay Customer';
+        const customer_first = customer_name.split(' ')[0] || 'NextPay';
+        const customer_last = customer_name.split(' ').slice(1).join(' ') || 'Customer';
+
+        // Generate Midtrans date format
         const now = new Date();
         const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
         const midtransDate = jakartaTime.toISOString().slice(0, 19).replace('T', ' ') + ' +0700';
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // PREPARE MIDTRANS API CALL
-        const customer_name = full_decrypted_data?.user_name || 'NextPay Customer';
-        const customer_first = customer_name.split(' ')[0] || 'NextPay';
-        const customer_last = customer_name.split(' ').slice(1).join(' ') || 'Customer';
-
+        // Prepare Midtrans API call with SMART TOKEN as order_id
         const midtransParams = {
             transaction_details: {
-                order_id: orderId,
+                order_id: orderId, // Smart token as order_id
                 gross_amount: finalAmount
             },
             credit_card: {
@@ -198,24 +140,61 @@ exports.handler = async function(event, context) {
             ],
             expiry: {
                 start_time: midtransDate,
-                unit: "minute",
-                duration: 20
+                unit: "minute", 
+                duration: 30
             },
-            custom_field1: unique_payment_id || 'not_set',
-            custom_field2: short_token || 'not_set',
+            custom_field1: decoded_data?.tc_no || 'not_set',
+            custom_field2: orderId, // Smart token
             custom_field3: Math.floor(Date.now() / 1000).toString(),
-            // MIDTRANS WEBHOOK URL EKLENDI
+            // Webhook folder callback URL
             callbacks: {
-                finish: 'https://nextpays.de/payment_complete.php?order_id=' + orderId
+                finish: 'https://nextpays.de/webhook/payment_complete.php?order_id=' + orderId
             }
         };
 
-        // CALL MIDTRANS API
+        // Send webhook notification to NextPay
+        console.log('📤 Sending webhook notification to NextPay...');
+        try {
+            const webhookResponse = await fetch('https://nextpays.de/webhook/midtrans.php', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'NextPay-SmartToken-Function-v3.0'
+                },
+                body: JSON.stringify({
+                    event: 'payment_initiated',
+                    order_id: orderId,
+                    smart_token: orderId,
+                    amount: finalAmount,
+                    item_name: finalItemName,
+                    status: 'PENDING',
+                    timestamp: new Date().toISOString(),
+                    timestamp_unix: Math.floor(Date.now() / 1000),
+                    decoded_user_data: decoded_data,
+                    request_details: {
+                        referrer: referrer,
+                        user_agent: user_agent,
+                        origin: origin,
+                        function_version: 'smart_token_v3.0'
+                    }
+                })
+            });
+            
+            const webhookText = await webhookResponse.text();
+            console.log('📡 Webhook response status:', webhookResponse.status);
+            console.log('📡 Webhook response length:', webhookText.length);
+            
+        } catch (webhookError) {
+            console.error('🚨 Webhook notification failed:', webhookError.message);
+        }
+
+        // Call Midtrans API
         const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API...');
+        console.log('🔗 Calling Midtrans API with smart token...');
+        console.log('🔗 Order ID (smart token):', orderId);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -223,7 +202,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-Netlify-Function-v1.1'
+                'User-Agent': 'NextPay-SmartToken-Function-v3.0'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -235,7 +214,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Payment token generated');
+            console.log('✅ SUCCESS - Smart token payment created');
             
             return {
                 statusCode: 200,
@@ -245,25 +224,27 @@ exports.handler = async function(event, context) {
                     data: {
                         token: responseData.token,
                         redirect_url: responseData.redirect_url,
-                        order_id: orderId,
+                        order_id: orderId, // Smart token
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
-                        expiry_duration: '20 minutes',
+                        expiry_duration: '30 minutes',
                         midtrans_response: responseData,
-                        php_notification: phpResult,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'webhook_v1.1',
+                        function_version: 'smart_token_v3.0',
+                        smart_token_system: true,
                         debug_info: {
                             customer_name: customer_name,
-                            unique_payment_id: unique_payment_id,
-                            short_token: short_token ? short_token.substring(0, 10) + '...' : null,
-                            webhook_configured: true
+                            smart_token: orderId,
+                            token_format: 'NEXT_hash_timestamp_random',
+                            callback_url: 'https://nextpays.de/webhook/payment_complete.php',
+                            webhook_notification_sent: true
                         }
                     }
                 })
             };
         } else {
             console.error('❌ Midtrans error response');
+            console.error('❌ Error details:', responseData);
             
             return {
                 statusCode: 400,
@@ -276,7 +257,8 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: orderId,
                         amount: finalAmount,
-                        php_result: phpResult
+                        smart_token: orderId,
+                        function_version: 'smart_token_v3.0'
                     }
                 })
             };
@@ -292,7 +274,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'webhook_v1.1'
+                function_version: 'smart_token_v3.0'
             })
         };
     }
