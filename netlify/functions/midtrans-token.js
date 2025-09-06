@@ -79,13 +79,28 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // GENERATE UNIQUE ORDER ID
+        // GENERATE UNIQUE ORDER ID - 64 CHAR TOKEN SYSTEM
         const timestamp = Math.floor(Date.now() / 1000);
         const random = Math.random().toString(36).slice(2, 9).toUpperCase();
-        const baseId = unique_payment_id ? unique_payment_id.slice(-10) : short_token ? short_token.slice(2, 12) : 'DEFAULT';
-        const orderId = `MID_${baseId}_${timestamp}_${random}`;
         
-        console.log('🎯 Generated order ID:', orderId);
+        // Extract 64-char token from full_decrypted_data or use short_token
+        let token64 = null;
+        if (full_decrypted_data?.token_64) {
+            token64 = full_decrypted_data.token_64;
+        } else if (short_token && short_token.length === 64 && /^[a-fA-F0-9]+$/.test(short_token)) {
+            token64 = short_token;
+        } else if (unique_payment_id) {
+            // Generate 64-char token from unique_payment_id
+            token64 = require('crypto').createHash('sha256').update(unique_payment_id + timestamp).digest('hex');
+        } else {
+            // Fallback: generate random 64-char token
+            token64 = require('crypto').randomBytes(32).toString('hex');
+        }
+        
+        const orderId = `MID_${token64}_${timestamp}_${random}`;
+        
+        console.log('🎯 Generated order ID with 64-char token:', orderId.substring(0, 50) + '...');
+        console.log('🎯 Token64 length:', token64.length);
 
         // SEND NOTIFICATION TO PHP WEBHOOK
         let phpResult = { skipped: true };
