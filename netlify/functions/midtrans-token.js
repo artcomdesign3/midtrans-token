@@ -131,7 +131,7 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 30
+                duration: 15
             },
             custom_field1: order_id,
             custom_field2: 'simple_method',
