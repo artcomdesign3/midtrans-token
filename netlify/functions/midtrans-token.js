@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - WEBHOOK URL FIXED
+// netlify/functions/midtrans-token.js - UPDATED CALLBACK URL v2.1
 exports.handler = async function(event, context) {
     // ENHANCED CORS HEADERS
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 FUNCTION CALLED - Method:', event.httpMethod);
+    console.log('🚀 FUNCTION CALLED v2.1 - Method:', event.httpMethod);
     console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
     // HANDLE PREFLIGHT
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'webhook_v2.0'
+                function_version: 'webhook_v2.1'
             })
         };
     }
@@ -117,7 +117,7 @@ exports.handler = async function(event, context) {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'User-Agent': 'NextPay-Netlify-Function-v2.0'
+                        'User-Agent': 'NextPay-Netlify-Function-v2.1'
                     },
                     body: JSON.stringify(notificationPayload)
                 });
@@ -155,7 +155,7 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // PREPARE MIDTRANS API CALL WITH WEBHOOK NOTIFICATION
+        // PREPARE MIDTRANS API CALL WITH UPDATED CALLBACK URL
         const customer_name = full_decrypted_data?.user_name || 'NextPay Customer';
         const customer_first = customer_name.split(' ')[0] || 'NextPay';
         const customer_last = customer_name.split(' ').slice(1).join(' ') || 'Customer';
@@ -194,9 +194,9 @@ exports.handler = async function(event, context) {
             custom_field1: unique_payment_id || 'not_set',
             custom_field2: short_token || 'not_set',
             custom_field3: Math.floor(Date.now() / 1000).toString(),
-            // CRITICAL: WEBHOOK NOTIFICATION URL - Bu Midtrans'ın otomatik olarak göndereceği webhook
+            // UPDATED: WEBHOOK FOLDER CALLBACK URL
             callbacks: {
-                finish: 'https://nextpays.de/payment_complete.php?order_id=' + orderId
+                finish: 'https://nextpays.de/webhook/payment_complete.php?order_id=' + orderId
             }
         };
 
@@ -205,7 +205,8 @@ exports.handler = async function(event, context) {
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API with webhook URL...');
+        console.log('🔗 Calling Midtrans API with WEBHOOK FOLDER callback...');
+        console.log('🔗 Callback URL: https://nextpays.de/webhook/payment_complete.php?order_id=' + orderId);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -213,7 +214,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-Netlify-Function-v2.0'
+                'User-Agent': 'NextPay-Netlify-Function-v2.1'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -225,7 +226,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Payment token generated with webhook');
+            console.log('✅ SUCCESS - Payment token generated with WEBHOOK FOLDER callback');
             
             return {
                 statusCode: 200,
@@ -242,13 +243,14 @@ exports.handler = async function(event, context) {
                         midtrans_response: responseData,
                         php_notification: phpResult,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'webhook_v2.0',
+                        function_version: 'webhook_v2.1',
+                        callback_url: 'https://nextpays.de/webhook/payment_complete.php',
                         webhook_configured: true,
                         debug_info: {
                             customer_name: customer_name,
                             unique_payment_id: unique_payment_id,
                             short_token: short_token ? short_token.substring(0, 10) + '...' : null,
-                            webhook_url_set: true
+                            callback_updated: true
                         }
                     }
                 })
@@ -267,7 +269,8 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: orderId,
                         amount: finalAmount,
-                        php_result: phpResult
+                        php_result: phpResult,
+                        callback_url: 'https://nextpays.de/webhook/payment_complete.php'
                     }
                 })
             };
@@ -283,7 +286,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'webhook_v2.0'
+                function_version: 'webhook_v2.1'
             })
         };
     }
