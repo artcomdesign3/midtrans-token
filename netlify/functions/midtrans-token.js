@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - SMART TOKEN SYSTEM v3.0
+// netlify/functions/midtrans-token.js - ENCRYPTED TOKEN SYSTEM v5.0
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 SMART TOKEN FUNCTION v3.0 - Method:', event.httpMethod);
+    console.log('🚀 ENCRYPTED TOKEN FUNCTION v5.0 - Method:', event.httpMethod);
     console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'smart_token_v3.0'
+                function_version: 'encrypted_token_v5.0'
             })
         };
     }
@@ -48,19 +48,17 @@ exports.handler = async function(event, context) {
             amount, 
             item_name,
             order_id,
-            smart_token,
-            decoded_data,
             auto_redirect, 
             referrer, 
             user_agent, 
-            origin
+            origin,
+            decoded_data
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
-        const finalItemName = item_name || 'NextPay Smart Payment';
+        const finalItemName = item_name || 'NextPay Encrypted Payment';
         
         console.log('💰 Parsed amount:', finalAmount);
-        console.log('🎯 Smart token:', smart_token);
         console.log('🎯 Order ID:', order_id);
         console.log('🎯 Has decoded data:', !!decoded_data);
         
@@ -79,30 +77,20 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Validate smart token format
-        const tokenPattern = /^NEXT_([a-f0-9]{10})_(\d{10})_([A-Z0-9]{6})$/;
-        let orderId = order_id || smart_token;
-        
-        if (!orderId || !tokenPattern.test(orderId)) {
-            console.error('❌ Invalid smart token format:', orderId);
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: 'Invalid smart token format. Expected: NEXT_hash_timestamp_random',
-                    received: orderId
-                })
-            };
+        // Generate unique order_id if not provided
+        let finalOrderId = order_id;
+        if (!finalOrderId) {
+            finalOrderId = `MID_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
         
-        console.log('✅ Smart token validation passed');
-        console.log('🎯 Using order ID:', orderId);
+        console.log('✅ Amount validation passed');
+        console.log('🎯 Using order ID:', finalOrderId);
 
-        // Prepare customer details
+        // Prepare customer details from decoded data
         const customer_name = decoded_data?.user_name || 'NextPay Customer';
         const customer_first = customer_name.split(' ')[0] || 'NextPay';
         const customer_last = customer_name.split(' ').slice(1).join(' ') || 'Customer';
+        const customer_tc = decoded_data?.tc_no || 'not_provided';
 
         // Generate Midtrans date format
         const now = new Date();
@@ -111,10 +99,10 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // Prepare Midtrans API call with SMART TOKEN as order_id
+        // Prepare Midtrans API call
         const midtransParams = {
             transaction_details: {
-                order_id: orderId, // Smart token as order_id
+                order_id: finalOrderId,
                 gross_amount: finalAmount
             },
             credit_card: {
@@ -143,12 +131,12 @@ exports.handler = async function(event, context) {
                 unit: "minute", 
                 duration: 30
             },
-            custom_field1: decoded_data?.tc_no || 'not_set',
-            custom_field2: orderId, // Smart token
+            custom_field1: customer_tc,
+            custom_field2: finalOrderId,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
-            // Webhook folder callback URL
+            // Webhook callback URL
             callbacks: {
-                finish: 'https://nextpays.de/webhook/payment_complete.php?order_id=' + orderId
+                finish: 'https://nextpays.de/webhook/payment_complete.php?order_id=' + finalOrderId
             }
         };
 
@@ -159,12 +147,11 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'NextPay-SmartToken-Function-v3.0'
+                    'User-Agent': 'NextPay-EncryptedToken-Function-v5.0'
                 },
                 body: JSON.stringify({
-                    event: 'payment_initiated',
-                    order_id: orderId,
-                    smart_token: orderId,
+                    event: 'payment_initiated_encrypted',
+                    order_id: finalOrderId,
                     amount: finalAmount,
                     item_name: finalItemName,
                     status: 'PENDING',
@@ -175,7 +162,12 @@ exports.handler = async function(event, context) {
                         referrer: referrer,
                         user_agent: user_agent,
                         origin: origin,
-                        function_version: 'smart_token_v3.0'
+                        function_version: 'encrypted_token_v5.0'
+                    },
+                    system_info: {
+                        encryption_method: 'AES-256-CBC',
+                        token_source: 'wordpress_gateway',
+                        processing_flow: 'nextpay->encrypt->wordpress->decrypt->netlify->midtrans'
                     }
                 })
             });
@@ -193,8 +185,10 @@ exports.handler = async function(event, context) {
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API with smart token...');
-        console.log('🔗 Order ID (smart token):', orderId);
+        console.log('🔗 Calling Midtrans API with encrypted token data...');
+        console.log('🔗 Order ID:', finalOrderId);
+        console.log('🔗 Customer:', customer_name);
+        console.log('🔗 Amount IDR:', finalAmount);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -202,7 +196,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-SmartToken-Function-v3.0'
+                'User-Agent': 'NextPay-EncryptedToken-Function-v5.0'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -214,7 +208,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Smart token payment created');
+            console.log('✅ SUCCESS - Encrypted token payment created');
             
             return {
                 statusCode: 200,
@@ -224,18 +218,21 @@ exports.handler = async function(event, context) {
                     data: {
                         token: responseData.token,
                         redirect_url: responseData.redirect_url,
-                        order_id: orderId, // Smart token
+                        order_id: finalOrderId,
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
                         expiry_duration: '30 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'smart_token_v3.0',
-                        smart_token_system: true,
+                        function_version: 'encrypted_token_v5.0',
+                        encrypted_token_system: true,
                         debug_info: {
                             customer_name: customer_name,
-                            smart_token: orderId,
-                            token_format: 'NEXT_hash_timestamp_random',
+                            customer_tc: customer_tc,
+                            amount_idr: finalAmount,
+                            amount_tl: decoded_data?.amount_tl || 'unknown',
+                            firm_name: decoded_data?.firm_name || 'unknown',
+                            encryption_flow: 'nextpay->encrypt->wordpress->decrypt->netlify->midtrans',
                             callback_url: 'https://nextpays.de/webhook/payment_complete.php',
                             webhook_notification_sent: true
                         }
@@ -255,10 +252,10 @@ exports.handler = async function(event, context) {
                     details: responseData,
                     midtrans_status: response.status,
                     debug_info: {
-                        order_id: orderId,
+                        order_id: finalOrderId,
                         amount: finalAmount,
-                        smart_token: orderId,
-                        function_version: 'smart_token_v3.0'
+                        customer_name: customer_name,
+                        function_version: 'encrypted_token_v5.0'
                     }
                 })
             };
@@ -274,7 +271,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'smart_token_v3.0'
+                function_version: 'encrypted_token_v5.0'
             })
         };
     }
