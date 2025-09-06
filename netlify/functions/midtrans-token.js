@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ENCRYPTED TOKEN SYSTEM v5.0
+// netlify/functions/midtrans-token.js - SIMPLE TOKEN SYSTEM v2.0
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ENCRYPTED TOKEN FUNCTION v5.0 - Method:', event.httpMethod);
+    console.log('🚀 SIMPLE TOKEN FUNCTION v2.0 - Method:', event.httpMethod);
     console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'encrypted_token_v5.0'
+                function_version: 'simple_token_v2.0'
             })
         };
     }
@@ -47,7 +47,7 @@ exports.handler = async function(event, context) {
         const { 
             amount, 
             item_name,
-            order_id,
+            order_id,  // This will be the NEXT_ token
             auto_redirect, 
             referrer, 
             user_agent, 
@@ -56,10 +56,10 @@ exports.handler = async function(event, context) {
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
-        const finalItemName = item_name || 'NextPay Encrypted Payment';
+        const finalItemName = item_name || 'NextPay Simple Payment';
         
         console.log('💰 Parsed amount:', finalAmount);
-        console.log('🎯 Order ID:', order_id);
+        console.log('🎯 Order ID (NEXT_ token):', order_id);
         console.log('🎯 Has decoded data:', !!decoded_data);
         
         // Validate amount
@@ -77,14 +77,16 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Generate unique order_id if not provided
+        // Use the NEXT_ token as order_id for Midtrans
         let finalOrderId = order_id;
-        if (!finalOrderId) {
-            finalOrderId = `MID_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        if (!finalOrderId || !finalOrderId.startsWith('NEXT_')) {
+            // If no NEXT_ token provided, generate one
+            finalOrderId = `NEXT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            console.log('⚠️ No NEXT_ token provided, generated:', finalOrderId);
         }
         
         console.log('✅ Amount validation passed');
-        console.log('🎯 Using order ID:', finalOrderId);
+        console.log('🎯 Using NEXT_ token as order ID:', finalOrderId);
 
         // Prepare customer details from decoded data
         const customer_name = decoded_data?.user_name || 'NextPay Customer';
@@ -102,7 +104,7 @@ exports.handler = async function(event, context) {
         // Prepare Midtrans API call
         const midtransParams = {
             transaction_details: {
-                order_id: finalOrderId,
+                order_id: finalOrderId, // Use NEXT_ token as order_id
                 gross_amount: finalAmount
             },
             credit_card: {
@@ -147,10 +149,10 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'NextPay-EncryptedToken-Function-v5.0'
+                    'User-Agent': 'NextPay-SimpleToken-Function-v2.0'
                 },
                 body: JSON.stringify({
-                    event: 'payment_initiated_encrypted',
+                    event: 'payment_initiated_simple_token',
                     order_id: finalOrderId,
                     amount: finalAmount,
                     item_name: finalItemName,
@@ -162,12 +164,12 @@ exports.handler = async function(event, context) {
                         referrer: referrer,
                         user_agent: user_agent,
                         origin: origin,
-                        function_version: 'encrypted_token_v5.0'
+                        function_version: 'simple_token_v2.0'
                     },
                     system_info: {
-                        encryption_method: 'AES-256-CBC',
-                        token_source: 'wordpress_gateway',
-                        processing_flow: 'nextpay->encrypt->wordpress->decrypt->netlify->midtrans'
+                        encryption_method: 'XOR_Base64',
+                        token_source: 'simple_nextpay_system',
+                        processing_flow: 'nextpay->simple_encrypt->pay_local->wordpress->decrypt->netlify->midtrans'
                     }
                 })
             });
@@ -185,8 +187,8 @@ exports.handler = async function(event, context) {
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API with encrypted token data...');
-        console.log('🔗 Order ID:', finalOrderId);
+        console.log('🔗 Calling Midtrans API with simple token data...');
+        console.log('🔗 Order ID (NEXT_ token):', finalOrderId);
         console.log('🔗 Customer:', customer_name);
         console.log('🔗 Amount IDR:', finalAmount);
 
@@ -196,7 +198,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-EncryptedToken-Function-v5.0'
+                'User-Agent': 'NextPay-SimpleToken-Function-v2.0'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -208,7 +210,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Encrypted token payment created');
+            console.log('✅ SUCCESS - Simple token payment created');
             
             return {
                 statusCode: 200,
@@ -218,21 +220,22 @@ exports.handler = async function(event, context) {
                     data: {
                         token: responseData.token,
                         redirect_url: responseData.redirect_url,
-                        order_id: finalOrderId,
+                        order_id: finalOrderId, // This is the NEXT_ token
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
                         expiry_duration: '30 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'encrypted_token_v5.0',
-                        encrypted_token_system: true,
+                        function_version: 'simple_token_v2.0',
+                        simple_token_system: true,
                         debug_info: {
                             customer_name: customer_name,
                             customer_tc: customer_tc,
                             amount_idr: finalAmount,
                             amount_tl: decoded_data?.amount_tl || 'unknown',
                             firm_name: decoded_data?.firm_name || 'unknown',
-                            encryption_flow: 'nextpay->encrypt->wordpress->decrypt->netlify->midtrans',
+                            next_token_used: finalOrderId,
+                            encryption_flow: 'nextpay->simple_encrypt->pay_local->wordpress->decrypt->netlify->midtrans',
                             callback_url: 'https://nextpays.de/webhook/payment_complete.php',
                             webhook_notification_sent: true
                         }
@@ -255,7 +258,7 @@ exports.handler = async function(event, context) {
                         order_id: finalOrderId,
                         amount: finalAmount,
                         customer_name: customer_name,
-                        function_version: 'encrypted_token_v5.0'
+                        function_version: 'simple_token_v2.0'
                     }
                 })
             };
@@ -271,7 +274,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'encrypted_token_v5.0'
+                function_version: 'simple_token_v2.0'
             })
         };
     }
