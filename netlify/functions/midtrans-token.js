@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - SIMPLE VERSION WITH CORS FIX
+// netlify/functions/midtrans-token.js - WEBHOOK URL ADDED
 exports.handler = async function(event, context) {
     // ENHANCED CORS HEADERS - WordPress staging domain eklendi
     const headers = {
@@ -12,9 +12,9 @@ exports.handler = async function(event, context) {
     };
 
     console.log('🚀 FUNCTION CALLED - Method:', event.httpMethod);
-    console.log('🌐 Origin:', event.headers.origin || 'No origin');
-    console.log('🌐 Host:', event.headers.host);
-    console.log('🌐 User-Agent:', event.headers['user-agent']);
+    console.log('🌍 Origin:', event.headers.origin || 'No origin');
+    console.log('🌍 Host:', event.headers.host);
+    console.log('🌍 User-Agent:', event.headers['user-agent']);
 
     // HANDLE ALL PREFLIGHT REQUESTS FIRST
     if (event.httpMethod === 'OPTIONS') {
@@ -25,7 +25,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'simple_v1.0'
+                function_version: 'webhook_v1.1'
             })
         };
     }
@@ -125,7 +125,7 @@ exports.handler = async function(event, context) {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'User-Agent': 'NextPay-Netlify-Function-v1.0'
+                        'User-Agent': 'NextPay-Netlify-Function-v1.1'
                     },
                     body: JSON.stringify(notificationPayload)
                 });
@@ -203,7 +203,11 @@ exports.handler = async function(event, context) {
             },
             custom_field1: unique_payment_id || 'not_set',
             custom_field2: short_token || 'not_set',
-            custom_field3: Math.floor(Date.now() / 1000).toString()
+            custom_field3: Math.floor(Date.now() / 1000).toString(),
+            // MIDTRANS WEBHOOK URL EKLENDI
+            callbacks: {
+                finish: 'https://nextpays.de/payment_complete.php?order_id=' + orderId
+            }
         };
 
         // CALL MIDTRANS API
@@ -219,7 +223,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-Netlify-Function-v1.0'
+                'User-Agent': 'NextPay-Netlify-Function-v1.1'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -248,11 +252,12 @@ exports.handler = async function(event, context) {
                         midtrans_response: responseData,
                         php_notification: phpResult,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'simple_v1.0',
+                        function_version: 'webhook_v1.1',
                         debug_info: {
                             customer_name: customer_name,
                             unique_payment_id: unique_payment_id,
-                            short_token: short_token ? short_token.substring(0, 10) + '...' : null
+                            short_token: short_token ? short_token.substring(0, 10) + '...' : null,
+                            webhook_configured: true
                         }
                     }
                 })
@@ -287,7 +292,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'simple_v1.0'
+                function_version: 'webhook_v1.1'
             })
         };
     }
