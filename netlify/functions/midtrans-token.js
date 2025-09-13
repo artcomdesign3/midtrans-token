@@ -1,48 +1,5 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.0 - 34 CHARACTER SUPPORT
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.1 - WORKING VERSION
 exports.handler = async function(event, context) {
-    
-    // *** RANDOM FAKE CUSTOMER DATA GENERATOR ***
-    function generateRandomCustomer() {
-        const firstNames = [
-            'Budi', 'Sari', 'Ahmad', 'Dewi', 'Rizki', 'Maya', 'Indra', 'Nia',
-            'Agus', 'Lina', 'Dedi', 'Rini', 'Bambang', 'Sinta', 'Eko', 'Tari',
-            'Hendra', 'Diah', 'Wawan', 'Fitri', 'Joko', 'Ratna', 'Yudi', 'Novi'
-        ];
-        
-        const lastNames = [
-            'Pratama', 'Sari', 'Wijaya', 'Kusuma', 'Santoso', 'Wardani', 'Putra',
-            'Dewi', 'Gunawan', 'Lestari', 'Setiawan', 'Rahayu', 'Surya', 'Indah',
-            'Mahendra', 'Safitri', 'Nugroho', 'Anggraini', 'Wibowo', 'Permata'
-        ];
-        
-        const domains = [
-            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'test.com',
-            'example.com', 'demo.id', 'sample.net', 'testing.org', 'fake.id'
-        ];
-        
-        const phonePrefix = ['0812', '0813', '0814', '0815', '0816', '0817', '0818', '0819', '0821', '0822'];
-        
-        // Random selection
-        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-        const domain = domains[Math.floor(Math.random() * domains.length)];
-        const prefix = phonePrefix[Math.floor(Math.random() * phonePrefix.length)];
-        
-        // Generate email (firstname.lastname + random number)
-        const emailNumber = Math.floor(Math.random() * 999) + 1;
-        const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${emailNumber}@${domain}`;
-        
-        // Generate phone (prefix + 7-8 random digits)
-        const phoneNumber = prefix + Math.floor(Math.random() * 90000000) + 10000000;
-        
-        return {
-            first_name: firstName,
-            last_name: lastName,
-            email: email,
-            phone: phoneNumber.toString()
-        };
-    }
-
     // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -54,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.0 - 34 CHAR SUPPORT - Method:', event.httpMethod);
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.1 - WORKING - Method:', event.httpMethod);
     console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -66,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.0_34char'
+                function_version: 'artcom_v6.1_working'
             })
         };
     }
@@ -128,9 +85,8 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // *** UPDATED: 34 CHARACTER TOKEN VALIDATION ***
+        // *** 34 CHARACTER TOKEN VALIDATION ***
         if (payment_source === 'legacy') {
-            // Legacy system: validate 34-char ARTCOM_ token
             console.log('🔍 Validating legacy token...');
             console.log('Token length:', order_id ? order_id.length : 0);
             console.log('Starts with ARTCOM_:', order_id ? order_id.startsWith('ARTCOM_') : false);
@@ -154,14 +110,13 @@ exports.handler = async function(event, context) {
                             actual_length: order_id ? order_id.length : 0,
                             expected_length: 34,
                             starts_with_artcom: order_id ? order_id.startsWith('ARTCOM_') : false,
-                            function_version: 'artcom_v6.0_34char'
+                            function_version: 'artcom_v6.1_working'
                         }
                     })
                 };
             }
             console.log('✅ Legacy token validation passed');
         } else if (payment_source === 'wix' || payment_source === 'wix_simple') {
-            // Wix system: validate ARTCOM_ order ID  
             if (!order_id || !order_id.startsWith('ARTCOM_')) {
                 console.error('❌ Invalid Wix order ID:', order_id);
                 return {
@@ -176,7 +131,6 @@ exports.handler = async function(event, context) {
                 };
             }
         } else {
-            // Fallback: basic order ID validation
             if (!order_id || order_id.length < 5) {
                 console.error('❌ Invalid order ID:', order_id);
                 return {
@@ -200,6 +154,14 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
+        // Simple customer data (no random generation for now)
+        const customerData = {
+            first_name: 'ArtCom',
+            last_name: 'Customer',
+            email: 'customer@artcom.design',
+            phone: '08123456789'
+        };
+
         // Prepare Midtrans API call
         const midtransParams = {
             transaction_details: {
@@ -217,12 +179,7 @@ exports.handler = async function(event, context) {
                     name: finalItemName
                 }
             ],
-            customer_details: {
-                first_name: 'ArtCom',
-                last_name: 'Customer',
-                email: 'customer@artcom.design',
-                phone: '08123456789'
-            },
+            customer_details: customerData,
             enabled_payments: [
                 'credit_card', 'gopay', 'shopeepay', 'other_qris',
                 'bank_transfer', 'echannel', 'permata_va', 'bca_va', 'bni_va', 'bri_va', 'other_va'
@@ -230,12 +187,11 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 30
+                duration: 15
             },
             custom_field1: order_id,
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
-            // Webhook callback URL - Legacy token ise nextpays.de, yoksa artcom.design
             callbacks: {
                 finish: (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
                     ? 'https://nextpays.de/webhook/payment_complete.php?order_id=' + order_id
@@ -252,7 +208,6 @@ exports.handler = async function(event, context) {
         // Send webhook notification
         console.log('📤 Sending webhook notification...');
         try {
-            // Legacy token ise nextpays.de, yoksa artcom.design
             const webhookUrl = (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
                 ? 'https://nextpays.de/webhook/midtrans.php'
                 : 'https://www.artcom.design/webhook/midtrans.php';
@@ -268,11 +223,12 @@ exports.handler = async function(event, context) {
                 timestamp: new Date().toISOString(),
                 timestamp_unix: Math.floor(Date.now() / 1000),
                 payment_source: payment_source,
+                customer_data: customerData,
                 request_details: {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
-                    function_version: 'artcom_v6.0_34char'
+                    function_version: 'artcom_v6.1_working'
                 },
                 system_info: {
                     method: payment_source,
@@ -281,11 +237,11 @@ exports.handler = async function(event, context) {
                     webhook_target: webhookUrl.includes('nextpays.de') ? 'nextpay' : 'artcom',
                     processing_flow: payment_source === 'wix' 
                         ? 'wix->artcom->wordpress->netlify->midtrans'
-                        : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook'
+                        : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook',
+                    random_customer_enabled: false
                 }
             };
 
-            // Add Wix-specific webhook data
             if (payment_source === 'wix') {
                 webhookData.wix_data = {
                     reference: wix_ref,
@@ -298,7 +254,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v6.0-34char'
+                    'User-Agent': 'ArtCom-Payment-Function-v6.1-working'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -327,7 +283,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-Payment-Function-v6.0-34char'
+                'User-Agent': 'ArtCom-Payment-Function-v6.1-working'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -339,7 +295,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - ArtCom payment created (34-char support)');
+            console.log('✅ SUCCESS - ArtCom payment created (working version)');
             
             return {
                 statusCode: 200,
@@ -352,10 +308,10 @@ exports.handler = async function(event, context) {
                         order_id: order_id,
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
-                        expiry_duration: '30 minutes',
+                        expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v6.0_34char',
+                        function_version: 'artcom_v6.1_working',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -368,10 +324,9 @@ exports.handler = async function(event, context) {
                             webhook_notification_sent: true,
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
                             token_validation: '34_character_support',
-                            customer_data: randomCustomer, // Generated fake customer for testing
-                            random_customer_enabled: true
+                            customer_data: customerData,
+                            random_customer_enabled: false
                         },
-                        // Wix-specific data
                         ...(payment_source === 'wix' && {
                             wix_info: {
                                 reference: wix_ref,
@@ -397,7 +352,7 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: order_id,
                         amount: finalAmount,
-                        function_version: 'artcom_v6.0_34char',
+                        function_version: 'artcom_v6.1_working',
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
                         token_validation: '34_character_support'
@@ -416,7 +371,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.0_34char'
+                function_version: 'artcom_v6.1_working'
             })
         };
     }
