@@ -366,7 +366,9 @@ exports.handler = async function(event, context) {
             console.log('✅ Enhanced fallback customer generated:', {
                 origin: selectedOrigin,
                 name: `${firstName} ${lastName}`,
-                phone: phone
+                email: `${emailPrefix}@${randomEmailDomain}`,
+                phone: phone,
+                country_code: selectedCountryCode
             });
             
             return {
