@@ -538,7 +538,9 @@ exports.handler = async function(event, context) {
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
                         token_validation: '34_character_support',
-                        customer_generation_method: 'deterministic_algorithm',
+                        customer_generation_method: 'deterministic_algorithm_with_credit_card',
+                        custom_name_provided: !!custom_name,
+                        credit_card_provided: !!credit_card,
                         random_customer_enabled: false
                     }
                 })
