@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - SIMPLE VERSION v4.0 - No token decoding
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v5.0
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,8 +11,8 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 SIMPLE FUNCTION v4.0 - Method:', event.httpMethod);
-    console.log('🌍 Origin:', event.headers.origin || 'No origin');
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v5.0 - Method:', event.httpMethod);
+    console.log('🌐 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'simple_v4.0'
+                function_version: 'artcom_v5.0'
             })
         };
     }
@@ -47,19 +47,27 @@ exports.handler = async function(event, context) {
         const { 
             amount, 
             item_name,
-            order_id,  // This is the 32-char NEXT_ token
+            order_id,  
             auto_redirect, 
             referrer, 
             user_agent, 
-            origin
+            origin,
+            payment_source = 'legacy', // 'legacy' or 'wix'
+            wix_ref,
+            wix_expiry,
+            wix_signature
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
-        const finalItemName = item_name || 'NextPay Simple Payment';
+        const finalItemName = item_name || 'ArtCom Design Payment';
         
         console.log('💰 Parsed amount:', finalAmount);
-        console.log('🎯 Order ID (32-char token):', order_id);
-        console.log('🚀 Method: Simple - No token decoding');
+        console.log('🎯 Order ID:', order_id);
+        console.log('🎨 Payment source:', payment_source);
+        
+        if (payment_source === 'wix') {
+            console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
+        }
         
         // Validate amount
         if (!finalAmount || finalAmount <= 0 || finalAmount > 999999999) {
@@ -76,23 +84,54 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Validate 32-char token format
-        if (!order_id || order_id.length !== 32 || !order_id.startsWith('NEXT_')) {
-            console.error('❌ Invalid 32-char token:', order_id);
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: 'Invalid 32-character token format', 
-                    received: order_id,
-                    expected: 'NEXT_ + 27 characters = 32 total'
-                })
-            };
+        // Order ID validation - different rules for different sources
+        if (payment_source === 'legacy') {
+            // Legacy system: validate 32-char NEXT_ token
+            if (!order_id || order_id.length !== 32 || !order_id.startsWith('NEXT_')) {
+                console.error('❌ Invalid legacy token:', order_id);
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ 
+                        success: false, 
+                        error: 'Invalid 32-character token format for legacy system', 
+                        received: order_id,
+                        expected: 'NEXT_ + 27 characters = 32 total'
+                    })
+                };
+            }
+        } else if (payment_source === 'wix') {
+            // Wix system: validate ARTCOM_ order ID
+            if (!order_id || !order_id.startsWith('ARTCOM_')) {
+                console.error('❌ Invalid Wix order ID:', order_id);
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ 
+                        success: false, 
+                        error: 'Invalid order ID format for Wix system', 
+                        received: order_id,
+                        expected: 'ARTCOM_ + reference'
+                    })
+                };
+            }
+        } else {
+            // Fallback: basic order ID validation
+            if (!order_id || order_id.length < 5) {
+                console.error('❌ Invalid order ID:', order_id);
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ 
+                        success: false, 
+                        error: 'Invalid order ID', 
+                        received: order_id
+                    })
+                };
+            }
         }
         
-        console.log('✅ All validations passed - Simple method');
-        console.log('🎯 Using token as order ID:', order_id);
+        console.log('✅ All validations passed - Payment source:', payment_source);
 
         // Generate Midtrans date format
         const now = new Date();
@@ -104,7 +143,7 @@ exports.handler = async function(event, context) {
         // Prepare Midtrans API call
         const midtransParams = {
             transaction_details: {
-                order_id: order_id, // Use 32-char NEXT_ token as order_id
+                order_id: order_id,
                 gross_amount: finalAmount
             },
             credit_card: {
@@ -112,16 +151,16 @@ exports.handler = async function(event, context) {
             },
             item_details: [
                 {
-                    id: 'ITEM_SIMPLE',
+                    id: payment_source === 'wix' ? 'ARTCOM_WIX' : 'ARTCOM_LEGACY',
                     price: finalAmount,
                     quantity: 1,
                     name: finalItemName
                 }
             ],
             customer_details: {
-                first_name: 'NextPay',
+                first_name: 'ArtCom',
                 last_name: 'Customer',
-                email: 'customer@nextpay.com',
+                email: 'customer@artcom.design',
                 phone: '08123456789'
             },
             enabled_payments: [
@@ -131,48 +170,73 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 15
+                duration: 30
             },
             custom_field1: order_id,
-            custom_field2: 'simple_method',
+            custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             // Webhook callback URL
             callbacks: {
-                finish: 'https://nextpays.de/webhook/payment_complete.php?order_id=' + order_id
+                finish: payment_source === 'wix' 
+                    ? 'https://www.artcom.design/webhook/payment_complete.php?order_id=' + order_id
+                    : 'https://nextpays.de/webhook/payment_complete.php?order_id=' + order_id
             }
         };
 
-        // Send webhook notification to NextPay
-        console.log('📤 Sending webhook notification to NextPay...');
+        // Add Wix-specific data if available
+        if (payment_source === 'wix' && wix_ref) {
+            midtransParams.custom_expiry = wix_expiry;
+            midtransParams.custom_reference = wix_ref;
+        }
+
+        // Send webhook notification
+        console.log('📤 Sending webhook notification...');
         try {
-            const webhookResponse = await fetch('https://nextpays.de/webhook/midtrans.php', {
+            const webhookUrl = payment_source === 'wix' 
+                ? 'https://www.artcom.design/webhook/midtrans.php'
+                : 'https://nextpays.de/webhook/midtrans.php';
+
+            const webhookData = {
+                event: `payment_initiated_${payment_source}`,
+                order_id: order_id,
+                amount: finalAmount,
+                item_name: finalItemName,
+                status: 'PENDING',
+                timestamp: new Date().toISOString(),
+                timestamp_unix: Math.floor(Date.now() / 1000),
+                payment_source: payment_source,
+                request_details: {
+                    referrer: referrer,
+                    user_agent: user_agent,
+                    origin: origin,
+                    function_version: 'artcom_v5.0'
+                },
+                system_info: {
+                    method: payment_source,
+                    token_format: payment_source === 'legacy' ? '32_character' : 'artcom_reference',
+                    token_length: order_id ? order_id.length : 0,
+                    processing_flow: payment_source === 'wix' 
+                        ? 'wix->artcom->wordpress->netlify->midtrans'
+                        : 'nextpay->32char_token->artcom->wordpress->netlify->midtrans'
+                }
+            };
+
+            // Add Wix-specific webhook data
+            if (payment_source === 'wix') {
+                webhookData.wix_data = {
+                    reference: wix_ref,
+                    expiry: wix_expiry,
+                    signature: wix_signature
+                };
+            }
+
+            const webhookResponse = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'NextPay-Simple-Function-v4.0'
+                    'User-Agent': 'ArtCom-Payment-Function-v5.0'
                 },
-                body: JSON.stringify({
-                    event: 'payment_initiated_simple_method',
-                    order_id: order_id,
-                    amount: finalAmount,
-                    item_name: finalItemName,
-                    status: 'PENDING',
-                    timestamp: new Date().toISOString(),
-                    timestamp_unix: Math.floor(Date.now() / 1000),
-                    request_details: {
-                        referrer: referrer,
-                        user_agent: user_agent,
-                        origin: origin,
-                        function_version: 'simple_v4.0'
-                    },
-                    system_info: {
-                        method: 'simple_url_parameters',
-                        token_format: '32_character',
-                        token_length: order_id ? order_id.length : 0,
-                        no_decoding: true,
-                        processing_flow: 'nextpay->32char_token->pay_local->wordpress_simple->netlify->midtrans'
-                    }
-                })
+                body: JSON.stringify(webhookData)
             });
             
             const webhookText = await webhookResponse.text();
@@ -188,9 +252,10 @@ exports.handler = async function(event, context) {
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API with simple method...');
-        console.log('🔗 Order ID (32-char token):', order_id);
+        console.log('🔗 Calling Midtrans API...');
+        console.log('🔗 Order ID:', order_id);
         console.log('🔗 Amount IDR:', finalAmount);
+        console.log('🔗 Payment source:', payment_source);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -198,7 +263,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'NextPay-Simple-Function-v4.0'
+                'User-Agent': 'ArtCom-Payment-Function-v5.0'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -210,7 +275,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Simple payment created');
+            console.log('✅ SUCCESS - ArtCom payment created');
             
             return {
                 statusCode: 200,
@@ -220,24 +285,33 @@ exports.handler = async function(event, context) {
                     data: {
                         token: responseData.token,
                         redirect_url: responseData.redirect_url,
-                        order_id: order_id, // This is the 32-char NEXT_ token
+                        order_id: order_id,
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
                         expiry_duration: '30 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'simple_v4.0',
-                        method: 'simple_url_parameters',
+                        function_version: 'artcom_v5.0',
+                        payment_source: payment_source,
                         debug_info: {
-                            token_32: order_id,
-                            token_length: order_id ? order_id.length : 0,
+                            order_id: order_id,
+                            order_id_length: order_id ? order_id.length : 0,
                             amount_idr: finalAmount,
-                            system: 'simple_method',
-                            encoding_method: 'none_direct_params',
-                            callback_url: 'https://nextpays.de/webhook/payment_complete.php',
+                            system: payment_source,
+                            callback_url: payment_source === 'wix' 
+                                ? 'https://www.artcom.design/webhook/payment_complete.php'
+                                : 'https://nextpays.de/webhook/payment_complete.php',
                             webhook_notification_sent: true,
-                            no_token_decoding: true
-                        }
+                            company: 'ArtCom Design'
+                        },
+                        // Wix-specific data
+                        ...(payment_source === 'wix' && {
+                            wix_info: {
+                                reference: wix_ref,
+                                expiry: wix_expiry,
+                                signature: wix_signature
+                            }
+                        })
                     }
                 })
             };
@@ -256,9 +330,9 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: order_id,
                         amount: finalAmount,
-                        function_version: 'simple_v4.0',
-                        token_length: order_id ? order_id.length : 0,
-                        method: 'simple_url_parameters'
+                        function_version: 'artcom_v5.0',
+                        payment_source: payment_source,
+                        order_id_length: order_id ? order_id.length : 0
                     }
                 })
             };
@@ -274,7 +348,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'simple_v4.0'
+                function_version: 'artcom_v5.0'
             })
         };
     }
