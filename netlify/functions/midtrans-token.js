@@ -1,5 +1,48 @@
 // netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.0 - 34 CHARACTER SUPPORT
 exports.handler = async function(event, context) {
+    
+    // *** RANDOM FAKE CUSTOMER DATA GENERATOR ***
+    function generateRandomCustomer() {
+        const firstNames = [
+            'Budi', 'Sari', 'Ahmad', 'Dewi', 'Rizki', 'Maya', 'Indra', 'Nia',
+            'Agus', 'Lina', 'Dedi', 'Rini', 'Bambang', 'Sinta', 'Eko', 'Tari',
+            'Hendra', 'Diah', 'Wawan', 'Fitri', 'Joko', 'Ratna', 'Yudi', 'Novi'
+        ];
+        
+        const lastNames = [
+            'Pratama', 'Sari', 'Wijaya', 'Kusuma', 'Santoso', 'Wardani', 'Putra',
+            'Dewi', 'Gunawan', 'Lestari', 'Setiawan', 'Rahayu', 'Surya', 'Indah',
+            'Mahendra', 'Safitri', 'Nugroho', 'Anggraini', 'Wibowo', 'Permata'
+        ];
+        
+        const domains = [
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'test.com',
+            'example.com', 'demo.id', 'sample.net', 'testing.org', 'fake.id'
+        ];
+        
+        const phonePrefix = ['0812', '0813', '0814', '0815', '0816', '0817', '0818', '0819', '0821', '0822'];
+        
+        // Random selection
+        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const domain = domains[Math.floor(Math.random() * domains.length)];
+        const prefix = phonePrefix[Math.floor(Math.random() * phonePrefix.length)];
+        
+        // Generate email (firstname.lastname + random number)
+        const emailNumber = Math.floor(Math.random() * 999) + 1;
+        const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${emailNumber}@${domain}`;
+        
+        // Generate phone (prefix + 7-8 random digits)
+        const phoneNumber = prefix + Math.floor(Math.random() * 90000000) + 10000000;
+        
+        return {
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            phone: phoneNumber.toString()
+        };
+    }
+
     // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
