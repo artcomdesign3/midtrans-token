@@ -302,7 +302,8 @@ exports.handler = async function(event, context) {
             payment_source = 'legacy',
             wix_ref,
             wix_expiry,
-            wix_signature
+            wix_signature,
+            custom_name  // Bu satırı ekle
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
