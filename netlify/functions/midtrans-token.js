@@ -298,9 +298,11 @@ exports.handler = async function(event, context) {
                             order_id_length: order_id ? order_id.length : 0,
                             amount_idr: finalAmount,
                             system: payment_source,
-                            callback_url: 'https://www.artcom.design/webhook/payment_complete.php',
+                            callback_url: (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
+                                ? 'https://nextpays.de/webhook/payment_complete.php'
+                                : 'https://www.artcom.design/webhook/payment_complete.php',
                             webhook_notification_sent: true,
-                            company: 'ArtCom Design'
+                            company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design'
                         },
                         // Wix-specific data
                         ...(payment_source === 'wix' && {
