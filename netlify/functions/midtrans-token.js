@@ -404,7 +404,7 @@ exports.handler = async function(event, context) {
         // Get customer data - use custom name if provided, otherwise random
         let customerData;
         
-        if (custom_name && custom_name.trim()) {
+        if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
             console.log('👤 Using custom name from URL:', custom_name);
             
             // Parse custom name (could be "First Last" or just "First")
