@@ -324,7 +324,9 @@ exports.handler = async function(event, context) {
                                 : 'https://www.artcom.design/webhook/payment_complete.php',
                             webhook_notification_sent: true,
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
-                            token_validation: '34_character_support'
+                            token_validation: '34_character_support',
+                            customer_data: randomCustomer, // Generated fake customer for testing
+                            random_customer_enabled: true
                         },
                         // Wix-specific data
                         ...(payment_source === 'wix' && {
