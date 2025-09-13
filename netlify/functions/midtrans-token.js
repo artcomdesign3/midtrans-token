@@ -170,7 +170,7 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 30
+                duration: 15
             },
             custom_field1: order_id,
             custom_field2: payment_source,
@@ -288,7 +288,7 @@ exports.handler = async function(event, context) {
                         order_id: order_id,
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
-                        expiry_duration: '30 minutes',
+                        expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
                         function_version: 'artcom_v5.0',
