@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.1 - WORKING VERSION
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.2 - RANDOM CUSTOMER DATA
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,8 +11,8 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.1 - WORKING - Method:', event.httpMethod);
-    console.log('🌐 Origin:', event.headers.origin || 'No origin');
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.2 - RANDOM CUSTOMER - Method:', event.httpMethod);
+    console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.1_working'
+                function_version: 'artcom_v6.2_random_customer'
             })
         };
     }
@@ -40,6 +40,342 @@ exports.handler = async function(event, context) {
                 allowed_methods: ['POST', 'OPTIONS']
             })
         };
+    }
+
+    // Function to get random customer data
+    async function getRandomCustomerData() {
+        try {
+            console.log('🎲 Fetching random customer data from global sources...');
+            
+            // Countries focused on Indonesia, Turkey, Central Asia, and global diversity
+            const countries = [
+                'id', // Indonesia (priority)
+                'tr', // Turkey (priority)
+                'uz', // Uzbekistan (Central Asia)
+                'kz', // Kazakhstan (Central Asia)
+                'kg', // Kyrgyzstan (Central Asia)
+                'tj', // Tajikistan (Central Asia)
+                'tm', // Turkmenistan (Central Asia)
+                'ir', // Iran (related region)
+                'az', // Azerbaijan (Turkic)
+                'ru', // Russia (has Central Asian influence)
+                'pk', // Pakistan (Muslim names)
+                'af', // Afghanistan (Central Asian region)
+                'in', // India (diverse names)
+                'bd', // Bangladesh (diverse names)
+                'my', // Malaysia (similar to Indonesia)
+                'sg', // Singapore (multicultural)
+                'th', // Thailand (Southeast Asia)
+                'ph', // Philippines (Southeast Asia)
+                'vn', // Vietnam (Southeast Asia)
+                'de', // Germany (European names)
+                'fr', // France (European names)
+                'gb', // UK (English names)
+                'us', // USA (diverse names)
+                'ca', // Canada (diverse names)
+                'au', // Australia (diverse names)
+                'br', // Brazil (diverse names)
+                'mx', // Mexico (diverse names)
+                'ar', // Argentina (diverse names)
+                'eg', // Egypt (Arabic names)
+                'ma', // Morocco (Arabic names)
+                'sa', // Saudi Arabia (Arabic names)
+                'ae', // UAE (Arabic names)
+                'ng', // Nigeria (African names)
+                'za', // South Africa (diverse names)
+                'gh', // Ghana (African names)
+                'ke', // Kenya (African names)
+                'et', // Ethiopia (African names)
+                'jp', // Japan (Asian names)
+                'kr', // South Korea (Asian names)
+                'cn', // China (Chinese names)
+                'hk', // Hong Kong (Chinese names)
+                'tw', // Taiwan (Chinese names)
+                'mn', // Mongolia (Central Asian region)
+                'np', // Nepal (South Asian names)
+                'lk', // Sri Lanka (South Asian names)
+                'mm', // Myanmar (Southeast Asian names)
+                'kh', // Cambodia (Southeast Asian names)
+                'la', // Laos (Southeast Asian names)
+                'ge', // Georgia (Caucasus region)
+                'am', // Armenia (Caucasus region)
+                'by', // Belarus (Eastern European names)
+                'ua', // Ukraine (Eastern European names)
+                'pl', // Poland (Eastern European names)
+                'cz', // Czech Republic (Eastern European names)
+                'hu', // Hungary (Eastern European names)
+                'ro', // Romania (Eastern European names)
+                'bg', // Bulgaria (Eastern European names)
+                'rs', // Serbia (Balkan names)
+                'hr', // Croatia (Balkan names)
+                'ba', // Bosnia (Balkan names)
+                'al', // Albania (Balkan names)
+                'mk', // North Macedonia (Balkan names)
+                'me', // Montenegro (Balkan names)
+                'si', // Slovenia (European names)
+                'sk', // Slovakia (European names)
+                'lt', // Lithuania (Baltic names)
+                'lv', // Latvia (Baltic names)
+                'ee', // Estonia (Baltic names)
+                'fi', // Finland (Nordic names)
+                'se', // Sweden (Nordic names)
+                'no', // Norway (Nordic names)
+                'dk', // Denmark (Nordic names)
+                'is', // Iceland (Nordic names)
+                'ie', // Ireland (Celtic names)
+                'nl', // Netherlands (European names)
+                'be', // Belgium (European names)
+                'ch', // Switzerland (European names)
+                'at', // Austria (European names)
+                'it', // Italy (European names)
+                'es', // Spain (European names)
+                'pt', // Portugal (European names)
+                'gr', // Greece (European names)
+                'cy', // Cyprus (European names)
+                'mt', // Malta (European names)
+                'lu', // Luxembourg (European names)
+                'mc', // Monaco (European names)
+                'ad', // Andorra (European names)
+                'li', // Liechtenstein (European names)
+                'sm', // San Marino (European names)
+                'va', // Vatican City (European names)
+                'fo', // Faroe Islands (Nordic names)
+                'gl', // Greenland (Nordic names)
+                'ax', // Åland Islands (Nordic names)
+                'sj', // Svalbard and Jan Mayen (Nordic names)
+                'bv', // Bouvet Island (Nordic names)
+                'hm', // Heard Island and McDonald Islands (Australian names)
+                'tf', // French Southern Territories (French names)
+                'io', // British Indian Ocean Territory (British names)
+                'fk', // Falkland Islands (British names)
+                'gs', // South Georgia and the South Sandwich Islands (British names)
+                'sh', // Saint Helena, Ascension and Tristan da Cunha (British names)
+                'tc', // Turks and Caicos Islands (Caribbean names)
+                'vg', // British Virgin Islands (Caribbean names)
+                'ai', // Anguilla (Caribbean names)
+                'ms', // Montserrat (Caribbean names)
+                'ky', // Cayman Islands (Caribbean names)
+                'bm', // Bermuda (British names)
+                'gi', // Gibraltar (British names)
+                'pn', // Pitcairn (British names)
+                'ck', // Cook Islands (Pacific names)
+                'nu', // Niue (Pacific names)
+                'tk', // Tokelau (Pacific names)
+                'wf', // Wallis and Futuna (Pacific names)
+                'pf', // French Polynesia (Pacific names)
+                'nc', // New Caledonia (Pacific names)
+                'vu', // Vanuatu (Pacific names)
+                'to', // Tonga (Pacific names)
+                'ws', // Samoa (Pacific names)
+                'as', // American Samoa (Pacific names)
+                'gu', // Guam (Pacific names)
+                'mp', // Northern Mariana Islands (Pacific names)
+                'pw', // Palau (Pacific names)
+                'fm', // Micronesia (Pacific names)
+                'mh', // Marshall Islands (Pacific names)
+                'ki', // Kiribati (Pacific names)
+                'tv', // Tuvalu (Pacific names)
+                'nr', // Nauru (Pacific names)
+                'fj', // Fiji (Pacific names)
+                'sb', // Solomon Islands (Pacific names)
+                'pg', // Papua New Guinea (Pacific names)
+                'nz', // New Zealand (Pacific names)
+                'nf', // Norfolk Island (Pacific names)
+                'cc', // Cocos (Keeling) Islands (Pacific names)
+                'cx', // Christmas Island (Pacific names)
+                'um', // United States Minor Outlying Islands (US names)
+                'vi', // U.S. Virgin Islands (Caribbean names)
+                'pr', // Puerto Rico (Caribbean names)
+                'do', // Dominican Republic (Caribbean names)
+                'ht', // Haiti (Caribbean names)
+                'jm', // Jamaica (Caribbean names)
+                'cu', // Cuba (Caribbean names)
+                'bs', // Bahamas (Caribbean names)
+                'bb', // Barbados (Caribbean names)
+                'lc', // Saint Lucia (Caribbean names)
+                'vc', // Saint Vincent and the Grenadines (Caribbean names)
+                'gd', // Grenada (Caribbean names)
+                'tt', // Trinidad and Tobago (Caribbean names)
+                'ag', // Antigua and Barbuda (Caribbean names)
+                'kn', // Saint Kitts and Nevis (Caribbean names)
+                'dm', // Dominica (Caribbean names)
+                'mq', // Martinique (Caribbean names)
+                'gp', // Guadeloupe (Caribbean names)
+                'bl', // Saint Barthélemy (Caribbean names)
+                'mf', // Saint Martin (Caribbean names)
+                'sx', // Sint Maarten (Caribbean names)
+                'cw', // Curaçao (Caribbean names)
+                'aw', // Aruba (Caribbean names)
+                'bq', // Caribbean Netherlands (Caribbean names)
+                'sr', // Suriname (South American names)
+                'gf', // French Guiana (South American names)
+                'gy', // Guyana (South American names)
+                've', // Venezuela (South American names)
+                'co', // Colombia (South American names)
+                'ec', // Ecuador (South American names)
+                'pe', // Peru (South American names)
+                'bo', // Bolivia (South American names)
+                'py', // Paraguay (South American names)
+                'uy', // Uruguay (South American names)
+                'cl', // Chile (South American names)
+                'fk', // Falkland Islands (South American names)
+                'gs'  // South Georgia and the South Sandwich Islands (South American names)
+            ];
+
+            // Randomly select a country with higher probability for priority regions
+            let selectedCountry;
+            const random = Math.random();
+            
+            if (random < 0.15) { // 15% chance for Indonesia
+                selectedCountry = 'id';
+            } else if (random < 0.25) { // 10% chance for Turkey  
+                selectedCountry = 'tr';
+            } else if (random < 0.35) { // 10% chance for Central Asia
+                const centralAsiaCountries = ['uz', 'kz', 'kg', 'tj', 'tm', 'mn'];
+                selectedCountry = centralAsiaCountries[Math.floor(Math.random() * centralAsiaCountries.length)];
+            } else if (random < 0.50) { // 15% chance for related regions (Middle East, South/Southeast Asia)
+                const relatedRegions = ['ir', 'az', 'pk', 'af', 'in', 'bd', 'my', 'sg', 'th', 'ph', 'vn', 'sa', 'ae', 'eg'];
+                selectedCountry = relatedRegions[Math.floor(Math.random() * relatedRegions.length)];
+            } else { // 50% chance for global diversity
+                selectedCountry = countries[Math.floor(Math.random() * countries.length)];
+            }
+
+            console.log('🌍 Selected country for random user:', selectedCountry);
+            
+            // RandomUser.me API call with selected nationality
+            const response = await fetch(`https://randomuser.me/api/?nat=${selectedCountry}&inc=name,email,phone,nat`, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'ArtCom-Payment-v6.2-Global'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`RandomUser API failed for country: ${selectedCountry}`);
+            }
+
+            const data = await response.json();
+            const user = data.results[0];
+
+            // Format phone number based on country
+            let phone = user.phone || '08123456789';
+            phone = phone.replace(/[^0-9]/g, ''); // Remove non-digits
+            
+            // Format phone number based on selected country
+            if (selectedCountry === 'id') { // Indonesia
+                if (phone.startsWith('62')) {
+                    phone = '0' + phone.slice(2);
+                } else if (!phone.startsWith('0')) {
+                    phone = '08' + phone.slice(0, 9);
+                }
+                phone = phone.slice(0, 13); // Max 13 digits for Indonesia
+            } else if (selectedCountry === 'tr') { // Turkey
+                if (phone.startsWith('90')) {
+                    phone = '0' + phone.slice(2);
+                } else if (!phone.startsWith('0')) {
+                    phone = '05' + phone.slice(0, 9);
+                }
+                phone = phone.slice(0, 11); // Max 11 digits for Turkey
+            } else { // Other countries - keep original or format as Indonesian fallback
+                if (phone.length < 8) {
+                    phone = '08' + phone.padEnd(9, '0').slice(0, 9);
+                } else if (phone.length > 15) {
+                    phone = phone.slice(0, 15);
+                }
+                // If phone is too short, pad with zeros
+                if (phone.length < 10) {
+                    phone = phone + '0'.repeat(10 - phone.length);
+                }
+            }
+
+            // Clean and format email
+            let email = user.email || `customer${Math.floor(Math.random() * 10000)}@artcom.design`;
+            
+            // Replace original domain with artcom.design but keep the unique part
+            if (email.includes('@')) {
+                const emailPrefix = email.split('@')[0];
+                email = `${emailPrefix}@artcom.design`;
+            }
+
+            const customerData = {
+                first_name: user.name.first || 'Customer',
+                last_name: user.name.last || 'ArtCom',
+                email: email,
+                phone: phone
+            };
+
+            console.log('✅ Global random customer generated:', {
+                country: selectedCountry,
+                name: `${customerData.first_name} ${customerData.last_name}`,
+                email: customerData.email,
+                phone: customerData.phone
+            });
+
+            return customerData;
+
+        } catch (error) {
+            console.warn('⚠️ RandomUser API failed, using enhanced fallback:', error.message);
+            
+            // Enhanced fallback with global names
+            const globalNames = {
+                // Indonesian names
+                indonesian_first: ['Andi', 'Budi', 'Citra', 'Dewi', 'Eko', 'Fitri', 'Gita', 'Hadi', 'Indra', 'Joko', 'Kartika', 'Linda', 'Made', 'Nita', 'Omar', 'Putri'],
+                indonesian_last: ['Pratama', 'Sari', 'Putra', 'Dewi', 'Wijaya', 'Utami', 'Santoso', 'Kurniawan', 'Lestari', 'Nugroho'],
+                
+                // Turkish names
+                turkish_first: ['Ahmet', 'Mehmet', 'Mustafa', 'Ayşe', 'Fatma', 'Emine', 'Hatice', 'Ali', 'Hüseyin', 'İbrahim', 'Zeynep', 'Elif', 'Merve', 'Büşra', 'Oğuz', 'Emre'],
+                turkish_last: ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Kilic', 'Aslan', 'Çetin', 'Kara'],
+                
+                // Central Asian names
+                central_asian_first: ['Azamat', 'Bekzat', 'Damir', 'Erlan', 'Farida', 'Gulnara', 'Husan', 'Jamshid', 'Kamila', 'Leyla', 'Maruf', 'Nodira', 'Otabek', 'Parviz', 'Rustam', 'Sevara'],
+                central_asian_last: ['Abdullayev', 'Boboyev', 'Ergashev', 'Ibragimov', 'Karimov', 'Mirzayev', 'Nazarov', 'Rahimov', 'Saidov', 'Tashev', 'Umarov', 'Yusupov'],
+                
+                // Arabic names
+                arabic_first: ['Ahmed', 'Mohammed', 'Omar', 'Fatima', 'Aisha', 'Khadija', 'Ali', 'Hassan', 'Hussein', 'Amina', 'Zahra', 'Layla', 'Yasmin', 'Nour', 'Sara', 'Rania'],
+                arabic_last: ['Al-Ahmad', 'Al-Mohammed', 'Al-Hassan', 'Al-Ali', 'Al-Omar', 'Al-Rashid', 'Al-Mahmoud', 'Al-Khalil', 'Al-Mansour', 'Al-Zahra'],
+                
+                // Global mix
+                global_first: ['Alexander', 'Elena', 'David', 'Maria', 'John', 'Anna', 'Michael', 'Sophia', 'Robert', 'Emma', 'James', 'Olivia', 'William', 'Isabella', 'Daniel', 'Mia'],
+                global_last: ['Smith', 'Johnson', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Garcia', 'Rodriguez']
+            };
+
+            // Randomly select name origin
+            const nameOrigins = ['indonesian', 'turkish', 'central_asian', 'arabic', 'global'];
+            const selectedOrigin = nameOrigins[Math.floor(Math.random() * nameOrigins.length)];
+            
+            const firstName = globalNames[`${selectedOrigin}_first`][Math.floor(Math.random() * globalNames[`${selectedOrigin}_first`].length)];
+            const lastName = globalNames[`${selectedOrigin}_last`][Math.floor(Math.random() * globalNames[`${selectedOrigin}_last`].length)];
+            
+            // Generate phone based on selected origin
+            let phone;
+            if (selectedOrigin === 'indonesian') {
+                const randomNumber = Math.floor(Math.random() * 90000000) + 10000000;
+                phone = '081' + randomNumber.toString().substring(0, 8);
+            } else if (selectedOrigin === 'turkish') {
+                const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
+                phone = '05' + randomNumber.toString().substring(0, 9);
+            } else {
+                const randomNumber = Math.floor(Math.random() * 90000000) + 10000000;
+                phone = '081' + randomNumber.toString().substring(0, 8); // Default to Indonesian format
+            }
+            
+            const emailPrefix = firstName.toLowerCase().replace(/[^a-zA-Z]/g, '') + 
+                             lastName.toLowerCase().replace(/[^a-zA-Z]/g, '').substring(0, 3) + 
+                             Math.floor(Math.random() * 1000);
+            
+            console.log('✅ Enhanced fallback customer generated:', {
+                origin: selectedOrigin,
+                name: `${firstName} ${lastName}`,
+                phone: phone
+            });
+            
+            return {
+                first_name: firstName,
+                last_name: lastName,
+                email: `${emailPrefix}@artcom.design`,
+                phone: phone
+            };
+        }
     }
 
     try {
@@ -110,7 +446,7 @@ exports.handler = async function(event, context) {
                             actual_length: order_id ? order_id.length : 0,
                             expected_length: 34,
                             starts_with_artcom: order_id ? order_id.startsWith('ARTCOM_') : false,
-                            function_version: 'artcom_v6.1_working'
+                            function_version: 'artcom_v6.2_random_customer'
                         }
                     })
                 };
@@ -154,13 +490,8 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // Simple customer data (no random generation for now)
-        const customerData = {
-            first_name: 'ArtCom',
-            last_name: 'Customer',
-            email: 'customer@artcom.design',
-            phone: '08123456789'
-        };
+        // Get random customer data
+        const customerData = await getRandomCustomerData();
 
         // Prepare Midtrans API call
         const midtransParams = {
@@ -228,7 +559,7 @@ exports.handler = async function(event, context) {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
-                    function_version: 'artcom_v6.1_working'
+                    function_version: 'artcom_v6.2_random_customer'
                 },
                 system_info: {
                     method: payment_source,
@@ -238,7 +569,8 @@ exports.handler = async function(event, context) {
                     processing_flow: payment_source === 'wix' 
                         ? 'wix->artcom->wordpress->netlify->midtrans'
                         : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook',
-                    random_customer_enabled: false
+                    random_customer_enabled: true,
+                    customer_generation: 'randomuser_api_with_fallback'
                 }
             };
 
@@ -254,7 +586,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v6.1-working'
+                    'User-Agent': 'ArtCom-Payment-Function-v6.2-random-customer'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -276,6 +608,7 @@ exports.handler = async function(event, context) {
         console.log('🔗 Order ID:', order_id);
         console.log('🔗 Amount IDR:', finalAmount);
         console.log('🔗 Payment source:', payment_source);
+        console.log('👤 Customer:', `${customerData.first_name} ${customerData.last_name} (${customerData.email})`);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -283,7 +616,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-Payment-Function-v6.1-working'
+                'User-Agent': 'ArtCom-Payment-Function-v6.2-random-customer'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -295,7 +628,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - ArtCom payment created (working version)');
+            console.log('✅ SUCCESS - ArtCom payment created with random customer');
             
             return {
                 statusCode: 200,
@@ -311,7 +644,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v6.1_working',
+                        function_version: 'artcom_v6.2_random_customer',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -325,7 +658,8 @@ exports.handler = async function(event, context) {
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
                             token_validation: '34_character_support',
                             customer_data: customerData,
-                            random_customer_enabled: false
+                            random_customer_enabled: true,
+                            customer_generation_method: 'randomuser_api_with_local_fallback'
                         },
                         ...(payment_source === 'wix' && {
                             wix_info: {
@@ -352,10 +686,11 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: order_id,
                         amount: finalAmount,
-                        function_version: 'artcom_v6.1_working',
+                        function_version: 'artcom_v6.2_random_customer',
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
-                        token_validation: '34_character_support'
+                        token_validation: '34_character_support',
+                        random_customer_enabled: true
                     }
                 })
             };
@@ -371,7 +706,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.1_working'
+                function_version: 'artcom_v6.2_random_customer'
             })
         };
     }
