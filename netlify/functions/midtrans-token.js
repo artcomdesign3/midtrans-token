@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.3 - FIXED VERSION
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.4 - DETERMINISTIC VERSION
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.3 - FIXED - Method:', event.httpMethod);
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.4 - DETERMINISTIC - Method:', event.httpMethod);
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.3_fixed'
+                function_version: 'artcom_v6.4_deterministic'
             })
         };
     }
@@ -42,250 +42,161 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Function to get random customer data
-    async function getRandomCustomerData() {
-        try {
-            console.log('🎲 Fetching random customer data from global sources...');
-            
-            // Countries focused on Indonesia, Turkey, Central Asia, and global diversity
-            const countries = [
-                'id', 'tr', 'uz', 'kz', 'kg', 'tj', 'tm', 'ir', 'az', 'ru', 'pk', 'af', 'in', 'bd', 'my', 'sg', 'th', 'ph', 'vn',
-                'de', 'fr', 'gb', 'us', 'ca', 'au', 'br', 'mx', 'ar', 'eg', 'ma', 'sa', 'ae', 'ng', 'za', 'jp', 'kr', 'cn'
-            ];
-
-            // Randomly select a country with higher probability for priority regions
-            let selectedCountry;
-            const random = Math.random();
-            
-            if (random < 0.15) { // 15% chance for Indonesia
-                selectedCountry = 'id';
-            } else if (random < 0.25) { // 10% chance for Turkey  
-                selectedCountry = 'tr';
-            } else if (random < 0.35) { // 10% chance for Central Asia
-                const centralAsiaCountries = ['uz', 'kz', 'kg', 'tj', 'tm'];
-                selectedCountry = centralAsiaCountries[Math.floor(Math.random() * centralAsiaCountries.length)];
-            } else if (random < 0.50) { // 15% chance for related regions
-                const relatedRegions = ['ir', 'az', 'pk', 'af', 'in', 'bd', 'my', 'sg', 'th', 'ph', 'vn', 'sa', 'ae', 'eg'];
-                selectedCountry = relatedRegions[Math.floor(Math.random() * relatedRegions.length)];
-            } else { // 50% chance for global diversity
-                selectedCountry = countries[Math.floor(Math.random() * countries.length)];
-            }
-
-            console.log('🌍 Selected country for random user:', selectedCountry);
-            
-            // RandomUser.me API call with selected nationality
-            const response = await fetch(`https://randomuser.me/api/?nat=${selectedCountry}&inc=name,email,phone,nat`, {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'ArtCom-Payment-v6.3-Fixed'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`RandomUser API failed for country: ${selectedCountry}`);
-            }
-
-            const data = await response.json();
-            const user = data.results[0];
-
-            // Generate diverse email domains (NO artcom.design)
-            const emailDomains = [
-                'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', // 30% gmail
-                'yahoo.com', 'yahoo.com', 'yahoo.com', 'yahoo.com', // 20% yahoo
-                'hotmail.com', 'hotmail.com', 'hotmail.com', // 15% hotmail
-                'outlook.com', 'outlook.com', 'outlook.com', // 15% outlook
-                'icloud.com', // 5% icloud
-                'protonmail.com', // 5% proton
-                'yandex.com', // 5% yandex
-                'mail.ru' // 5% mail.ru
-            ];
-
-            // Country-specific phone formatting with proper country codes
-            const countryPhoneFormats = {
-                'id': { code: '+62', format: (num) => `+62${num.startsWith('0') ? num.slice(1) : num}` },
-                'tr': { code: '+90', format: (num) => `+90${num.startsWith('0') ? num.slice(1) : num}` },
-                'uz': { code: '+998', format: (num) => `+998${num}` },
-                'kz': { code: '+7', format: (num) => `+7${num}` },
-                'kg': { code: '+996', format: (num) => `+996${num}` },
-                'tj': { code: '+992', format: (num) => `+992${num}` },
-                'tm': { code: '+993', format: (num) => `+993${num}` },
-                'ir': { code: '+98', format: (num) => `+98${num}` },
-                'az': { code: '+994', format: (num) => `+994${num}` },
-                'ru': { code: '+7', format: (num) => `+7${num}` },
-                'pk': { code: '+92', format: (num) => `+92${num}` },
-                'af': { code: '+93', format: (num) => `+93${num}` },
-                'in': { code: '+91', format: (num) => `+91${num}` },
-                'bd': { code: '+880', format: (num) => `+880${num}` },
-                'my': { code: '+60', format: (num) => `+60${num}` },
-                'sg': { code: '+65', format: (num) => `+65${num}` },
-                'th': { code: '+66', format: (num) => `+66${num}` },
-                'ph': { code: '+63', format: (num) => `+63${num}` },
-                'vn': { code: '+84', format: (num) => `+84${num}` },
-                'sa': { code: '+966', format: (num) => `+966${num}` },
-                'ae': { code: '+971', format: (num) => `+971${num}` },
-                'eg': { code: '+20', format: (num) => `+20${num}` },
-                'ma': { code: '+212', format: (num) => `+212${num}` },
-                'us': { code: '+1', format: (num) => `+1${num}` },
-                'ca': { code: '+1', format: (num) => `+1${num}` },
-                'gb': { code: '+44', format: (num) => `+44${num}` },
-                'de': { code: '+49', format: (num) => `+49${num}` },
-                'fr': { code: '+33', format: (num) => `+33${num}` },
-                'it': { code: '+39', format: (num) => `+39${num}` },
-                'es': { code: '+34', format: (num) => `+34${num}` },
-                'br': { code: '+55', format: (num) => `+55${num}` },
-                'mx': { code: '+52', format: (num) => `+52${num}` },
-                'ar': { code: '+54', format: (num) => `+54${num}` },
-                'au': { code: '+61', format: (num) => `+61${num}` },
-                'jp': { code: '+81', format: (num) => `+81${num}` },
-                'kr': { code: '+82', format: (num) => `+82${num}` },
-                'cn': { code: '+86', format: (num) => `+86${num}` }
-            };
-
-            // Format phone number with proper country codes
-            let phone = user.phone || '08123456789';
-            phone = phone.replace(/[^0-9]/g, ''); // Remove non-digits
-            
-            // Format phone based on country
-            if (countryPhoneFormats[selectedCountry]) {
-                const phoneFormat = countryPhoneFormats[selectedCountry];
-                
-                // Clean and format the phone number
-                if (phone.length < 8) {
-                    phone = phone.padEnd(8, '0');
-                } else if (phone.length > 12) {
-                    phone = phone.slice(0, 12);
-                }
-                
-                // Remove country code if already present
-                if (phone.startsWith(phoneFormat.code.replace('+', ''))) {
-                    phone = phone.slice(phoneFormat.code.length - 1);
-                }
-                
-                phone = phoneFormat.format(phone);
-            } else {
-                // Default fallback to Indonesian format
-                if (phone.startsWith('62')) {
-                    phone = '+62' + phone.slice(2);
-                } else if (phone.startsWith('0')) {
-                    phone = '+62' + phone.slice(1);
-                } else {
-                    phone = '+62' + phone;
-                }
-            }
-            
-            // Ensure phone is not too long
-            if (phone.length > 17) {
-                phone = phone.slice(0, 17);
-            }
-
-            // Clean and format email with diverse domains
-            let email = user.email || `customer${Math.floor(Math.random() * 10000)}@gmail.com`;
-            
-            // Replace domain with random selection
-            if (email.includes('@')) {
-                const emailPrefix = email.split('@')[0];
-                const randomDomain = emailDomains[Math.floor(Math.random() * emailDomains.length)];
-                email = `${emailPrefix}@${randomDomain}`;
-            }
-
-            const customerData = {
-                first_name: user.name.first || 'Customer',
-                last_name: user.name.last || 'ArtCom',
-                email: email,
-                phone: phone
-            };
-
-            console.log('✅ Global random customer generated:', {
-                country: selectedCountry,
-                name: `${customerData.first_name} ${customerData.last_name}`,
-                email: customerData.email,
-                phone: customerData.phone
-            });
-
-            return customerData;
-
-        } catch (error) {
-            console.warn('⚠️ RandomUser API failed, using enhanced fallback:', error.message);
-            
-            // Enhanced fallback with global names
-            const globalNames = {
-                // Indonesian names
-                indonesian_first: ['Andi', 'Budi', 'Citra', 'Dewi', 'Eko', 'Fitri', 'Gita', 'Hadi', 'Indra', 'Joko', 'Kartika', 'Linda', 'Made', 'Nita', 'Omar', 'Putri'],
-                indonesian_last: ['Pratama', 'Sari', 'Putra', 'Dewi', 'Wijaya', 'Utami', 'Santoso', 'Kurniawan', 'Lestari', 'Nugroho'],
-                
-                // Turkish names
-                turkish_first: ['Ahmet', 'Mehmet', 'Mustafa', 'Ayşe', 'Fatma', 'Emine', 'Hatice', 'Ali', 'Hüseyin', 'İbrahim', 'Zeynep', 'Elif', 'Merve', 'Büşra', 'Oğuz', 'Emre'],
-                turkish_last: ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Kilic', 'Aslan', 'Çetin', 'Kara'],
-                
-                // Central Asian names
-                central_asian_first: ['Azamat', 'Bekzat', 'Damir', 'Erlan', 'Farida', 'Gulnara', 'Husan', 'Jamshid', 'Kamila', 'Leyla', 'Maruf', 'Nodira', 'Otabek', 'Parviz', 'Rustam', 'Sevara'],
-                central_asian_last: ['Abdullayev', 'Boboyev', 'Ergashev', 'Ibragimov', 'Karimov', 'Mirzayev', 'Nazarov', 'Rahimov', 'Saidov', 'Tashev', 'Umarov', 'Yusupov'],
-                
-                // Arabic names
-                arabic_first: ['Ahmed', 'Mohammed', 'Omar', 'Fatima', 'Aisha', 'Khadija', 'Ali', 'Hassan', 'Hussein', 'Amina', 'Zahra', 'Layla', 'Yasmin', 'Nour', 'Sara', 'Rania'],
-                arabic_last: ['Al-Ahmad', 'Al-Mohammed', 'Al-Hassan', 'Al-Ali', 'Al-Omar', 'Al-Rashid', 'Al-Mahmoud', 'Al-Khalil', 'Al-Mansour', 'Al-Zahra'],
-                
-                // Global mix
-                global_first: ['Alexander', 'Elena', 'David', 'Maria', 'John', 'Anna', 'Michael', 'Sophia', 'Robert', 'Emma', 'James', 'Olivia', 'William', 'Isabella', 'Daniel', 'Mia'],
-                global_last: ['Smith', 'Johnson', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Garcia', 'Rodriguez']
-            };
-
-            // Randomly select name origin
-            const nameOrigins = ['indonesian', 'turkish', 'central_asian', 'arabic', 'global'];
-            const selectedOrigin = nameOrigins[Math.floor(Math.random() * nameOrigins.length)];
-            
-            const firstName = globalNames[`${selectedOrigin}_first`][Math.floor(Math.random() * globalNames[`${selectedOrigin}_first`].length)];
-            const lastName = globalNames[`${selectedOrigin}_last`][Math.floor(Math.random() * globalNames[`${selectedOrigin}_last`].length)];
-            
-            // Generate phone with proper country codes based on selected origin
-            const phoneCountryCodes = {
-                'indonesian': ['+62'],
-                'turkish': ['+90'],
-                'central_asian': ['+998', '+7', '+996', '+992', '+993'],
-                'arabic': ['+966', '+971', '+20', '+212', '+962', '+964'],
-                'global': ['+1', '+44', '+49', '+33', '+39', '+81', '+82', '+86', '+91', '+55', '+52', '+61']
-            };
-            
-            const selectedCountryCode = phoneCountryCodes[selectedOrigin][Math.floor(Math.random() * phoneCountryCodes[selectedOrigin].length)];
-            const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
-            
-            let phone;
-            if (selectedOrigin === 'indonesian') {
-                phone = `${selectedCountryCode}${randomNumber.toString().substring(0, 9)}`;
-            } else if (selectedOrigin === 'turkish') {
-                phone = `${selectedCountryCode}${randomNumber.toString().substring(0, 10)}`;
-            } else {
-                phone = `${selectedCountryCode}${randomNumber.toString().substring(0, 9)}`;
-            }
-            
-            // Generate diverse email domains for fallback
-            const fallbackEmailDomains = [
-                'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', // 40% gmail
-                'yahoo.com', 'yahoo.com', // 20% yahoo
-                'hotmail.com', 'outlook.com', // 20% microsoft
-                'icloud.com', 'protonmail.com' // 20% other
-            ];
-            
-            const randomEmailDomain = fallbackEmailDomains[Math.floor(Math.random() * fallbackEmailDomains.length)];
-            
-            const emailPrefix = firstName.toLowerCase().replace(/[^a-zA-Z]/g, '') + 
-                             lastName.toLowerCase().replace(/[^a-zA-Z]/g, '').substring(0, 3) + 
-                             Math.floor(Math.random() * 1000);
-            
-            console.log('✅ Enhanced fallback customer generated:', {
-                origin: selectedOrigin,
-                name: `${firstName} ${lastName}`,
-                email: `${emailPrefix}@${randomEmailDomain}`,
-                phone: phone,
-                country_code: selectedCountryCode
-            });
-            
+    // Deterministic Customer Data Generator - Same name always generates same phone & email
+    function generateDeterministicContact(name) {
+        // Input validation
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return {
-                first_name: firstName,
-                last_name: lastName,
-                email: `${emailPrefix}@${randomEmailDomain}`,
-                phone: phone
+                first_name: 'Customer',
+                last_name: 'ArtCom',
+                email: 'customer@gmail.com',
+                phone: '+628123456789'
             };
+        }
+
+        // Clean and normalize name
+        const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        
+        // Simple but effective hash function (same input = same output)
+        function simpleHash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash);
+        }
+
+        // Seeded random function (deterministic)
+        function seededRandom(seed) {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        // Generate base hash from name
+        const baseHash = simpleHash(cleanName);
+        
+        // Parse name parts
+        const nameParts = cleanName.split(' ').filter(part => part.length > 0);
+        const firstName = nameParts[0] || 'customer';
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'artcom';
+        
+        // Capitalize first letter of each part
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        const finalFirstName = capitalize(firstName);
+        const finalLastName = capitalize(lastName);
+
+        // Generate phone number (deterministic)
+        const phoneSeed = baseHash % 1000000;
+        const phoneRandom1 = seededRandom(phoneSeed);
+        const phoneRandom2 = seededRandom(phoneSeed + 1);
+        const phoneRandom3 = seededRandom(phoneSeed + 2);
+        
+        // Country codes with probabilities (deterministic selection)
+        const countryCodes = [
+            { code: '+62', weight: 30 }, // Indonesia
+            { code: '+90', weight: 15 }, // Turkey
+            { code: '+1', weight: 10 },  // US/Canada
+            { code: '+7', weight: 8 },   // Russia/Kazakhstan
+            { code: '+91', weight: 8 },  // India
+            { code: '+44', weight: 5 },  // UK
+            { code: '+49', weight: 5 },  // Germany
+            { code: '+33', weight: 5 },  // France
+            { code: '+81', weight: 4 },  // Japan
+            { code: '+82', weight: 4 },  // South Korea
+            { code: '+86', weight: 3 },  // China
+            { code: '+55', weight: 3 }   // Brazil
+        ];
+        
+        // Select country code deterministically
+        let totalWeight = countryCodes.reduce((sum, c) => sum + c.weight, 0);
+        let randomWeight = Math.floor(phoneRandom1 * totalWeight);
+        let selectedCountryCode = '+62'; // default
+        
+        let currentWeight = 0;
+        for (const country of countryCodes) {
+            currentWeight += country.weight;
+            if (randomWeight < currentWeight) {
+                selectedCountryCode = country.code;
+                break;
+            }
+        }
+        
+        // Generate phone number digits
+        const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100; // 3 digits
+        const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000; // 6 digits
+        const phone = `${selectedCountryCode}${phoneNum1}${phoneNum2}`;
+
+        // Generate email (deterministic)
+        const emailSeed = baseHash % 500000;
+        const emailRandom1 = seededRandom(emailSeed + 10);
+        const emailRandom2 = seededRandom(emailSeed + 20);
+        
+        // Email domains with weights
+        const emailDomains = [
+            { domain: 'gmail.com', weight: 35 },
+            { domain: 'yahoo.com', weight: 20 },
+            { domain: 'hotmail.com', weight: 15 },
+            { domain: 'outlook.com', weight: 10 },
+            { domain: 'icloud.com', weight: 5 },
+            { domain: 'protonmail.com', weight: 5 },
+            { domain: 'yandex.com', weight: 5 },
+            { domain: 'mail.ru', weight: 5 }
+        ];
+        
+        // Select email domain deterministically
+        let emailTotalWeight = emailDomains.reduce((sum, d) => sum + d.weight, 0);
+        let emailRandomWeight = Math.floor(emailRandom1 * emailTotalWeight);
+        let selectedDomain = 'gmail.com'; // default
+        
+        let emailCurrentWeight = 0;
+        for (const domain of emailDomains) {
+            emailCurrentWeight += domain.weight;
+            if (emailRandomWeight < emailCurrentWeight) {
+                selectedDomain = domain.domain;
+                break;
+            }
+        }
+        
+        // Create email prefix (deterministic)
+        const emailPrefix = firstName.slice(0, 4) + 
+                           lastName.slice(0, 3) + 
+                           Math.floor(emailRandom2 * 999).toString().padStart(3, '0');
+        
+        const email = `${emailPrefix}@${selectedDomain}`;
+
+        // Return consistent result
+        return {
+            first_name: finalFirstName,
+            last_name: finalLastName,
+            email: email,
+            phone: phone
+        };
+    }
+
+    // Generate fallback customer name when no custom_name provided
+    function generateFallbackName(order_id, amount) {
+        // Use order_id and amount as seed for consistent fallback names
+        const seed = simpleHash((order_id || 'default') + (amount || '1000').toString());
+        
+        const fallbackNames = [
+            'Customer ArtCom', 'User Payment', 'Client Design', 'Buyer Digital',
+            'Guest Service', 'Member Premium', 'Order Client', 'Payment User'
+        ];
+        
+        const selectedName = fallbackNames[seed % fallbackNames.length];
+        return selectedName;
+        
+        function simpleHash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
         }
     }
 
@@ -303,7 +214,7 @@ exports.handler = async function(event, context) {
             wix_ref,
             wix_expiry,
             wix_signature,
-            custom_name  // Bu satırı ekle
+            custom_name
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
@@ -312,6 +223,7 @@ exports.handler = async function(event, context) {
         console.log('💰 Parsed amount:', finalAmount);
         console.log('🎯 Order ID:', order_id);
         console.log('🎨 Payment source:', payment_source);
+        console.log('👤 Custom name:', custom_name);
         console.log('📏 Order ID length:', order_id ? order_id.length : 0);
         
         if (payment_source === 'wix') {
@@ -358,7 +270,7 @@ exports.handler = async function(event, context) {
                             actual_length: order_id ? order_id.length : 0,
                             expected_length: 34,
                             starts_with_artcom: order_id ? order_id.startsWith('ARTCOM_') : false,
-                            function_version: 'artcom_v6.3_fixed'
+                            function_version: 'artcom_v6.4_deterministic'
                         }
                     })
                 };
@@ -402,57 +314,28 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // Get customer data - use custom name if provided, otherwise random
+        // DETERMINISTIC CUSTOMER DATA GENERATION
         let customerData;
+        let nameForGeneration;
         
         if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
-            console.log('👤 Using custom name from URL:', custom_name);
-            
-            // Parse custom name (could be "First Last" or just "First")
-            const nameParts = custom_name.trim().split(' ');
-            const firstName = nameParts[0] || 'Customer';
-            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'ArtCom';
-            
-            // Generate random email and phone for custom name
-            const emailDomains = [
-                'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', // 30% gmail
-                'yahoo.com', 'yahoo.com', 'yahoo.com', 'yahoo.com', // 20% yahoo
-                'hotmail.com', 'hotmail.com', 'hotmail.com', // 15% hotmail
-                'outlook.com', 'outlook.com', 'outlook.com', // 15% outlook
-                'icloud.com', // 5% icloud
-                'protonmail.com', // 5% proton
-                'yandex.com', // 5% yandex
-                'mail.ru' // 5% mail.ru
-            ];
-            
-            const randomEmailDomain = emailDomains[Math.floor(Math.random() * emailDomains.length)];
-            const emailPrefix = firstName.toLowerCase().replace(/[^a-zA-Z]/g, '') + 
-                              lastName.toLowerCase().replace(/[^a-zA-Z]/g, '').substring(0, 3) + 
-                              Math.floor(Math.random() * 1000);
-            
-            // Generate random phone with Indonesian format as default
-            const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
-            const phone = `+62${randomNumber.toString().substring(0, 9)}`;
-            
-            customerData = {
-                first_name: firstName,
-                last_name: lastName,
-                email: `${emailPrefix}@${randomEmailDomain}`,
-                phone: phone
-            };
-            
-            console.log('✅ Custom customer data created:', {
-                original_name: custom_name,
-                parsed_name: `${firstName} ${lastName}`,
-                email: customerData.email,
-                phone: customerData.phone
-            });
-            
+            nameForGeneration = custom_name.trim();
+            console.log('👤 Using provided custom name:', nameForGeneration);
         } else {
-            console.log('🎲 No custom name provided, generating random customer...');
-            // Get random customer data using existing function
-            customerData = await getRandomCustomerData();
+            nameForGeneration = generateFallbackName(order_id, finalAmount);
+            console.log('🎯 Generated fallback name:', nameForGeneration);
         }
+        
+        // Generate deterministic customer data
+        customerData = generateDeterministicContact(nameForGeneration);
+        
+        console.log('✅ Deterministic customer data generated:', {
+            input_name: nameForGeneration,
+            output_name: `${customerData.first_name} ${customerData.last_name}`,
+            email: customerData.email,
+            phone: customerData.phone,
+            method: 'deterministic_algorithm'
+        });
 
         // Prepare Midtrans API call
         const midtransParams = {
@@ -520,7 +403,9 @@ exports.handler = async function(event, context) {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
-                    function_version: 'artcom_v6.3_fixed'
+                    custom_name: custom_name,
+                    generated_name: nameForGeneration,
+                    function_version: 'artcom_v6.4_deterministic'
                 },
                 system_info: {
                     method: payment_source,
@@ -530,8 +415,8 @@ exports.handler = async function(event, context) {
                     processing_flow: payment_source === 'wix' 
                         ? 'wix->artcom->wordpress->netlify->midtrans'
                         : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook',
-                    random_customer_enabled: true,
-                    customer_generation: 'randomuser_api_with_fallback'
+                    customer_generation: 'deterministic_algorithm',
+                    random_customer_enabled: false
                 }
             };
 
@@ -547,7 +432,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v6.3-fixed'
+                    'User-Agent': 'ArtCom-Payment-Function-v6.4-deterministic'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -577,7 +462,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-Payment-Function-v6.3-fixed'
+                'User-Agent': 'ArtCom-Payment-Function-v6.4-deterministic'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -589,7 +474,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - ArtCom payment created with random customer');
+            console.log('✅ SUCCESS - ArtCom payment created with deterministic customer data');
             
             return {
                 statusCode: 200,
@@ -605,7 +490,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v6.3_fixed',
+                        function_version: 'artcom_v6.4_deterministic',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -619,8 +504,10 @@ exports.handler = async function(event, context) {
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
                             token_validation: '34_character_support',
                             customer_data: customerData,
-                            random_customer_enabled: true,
-                            customer_generation_method: 'randomuser_api_with_local_fallback'
+                            customer_generation_method: 'deterministic_algorithm',
+                            input_name: nameForGeneration,
+                            custom_name_provided: !!custom_name,
+                            random_customer_enabled: false
                         },
                         ...(payment_source === 'wix' && {
                             wix_info: {
@@ -647,11 +534,12 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: order_id,
                         amount: finalAmount,
-                        function_version: 'artcom_v6.3_fixed',
+                        function_version: 'artcom_v6.4_deterministic',
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
                         token_validation: '34_character_support',
-                        random_customer_enabled: true
+                        customer_generation_method: 'deterministic_algorithm',
+                        random_customer_enabled: false
                     }
                 })
             };
@@ -667,7 +555,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.3_fixed'
+                function_version: 'artcom_v6.4_deterministic'
             })
         };
     }
