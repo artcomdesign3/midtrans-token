@@ -401,8 +401,57 @@ exports.handler = async function(event, context) {
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // Get random customer data
-        const customerData = await getRandomCustomerData();
+        // Get customer data - use custom name if provided, otherwise random
+        let customerData;
+        
+        if (custom_name && custom_name.trim()) {
+            console.log('👤 Using custom name from URL:', custom_name);
+            
+            // Parse custom name (could be "First Last" or just "First")
+            const nameParts = custom_name.trim().split(' ');
+            const firstName = nameParts[0] || 'Customer';
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'ArtCom';
+            
+            // Generate random email and phone for custom name
+            const emailDomains = [
+                'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', 'gmail.com', // 30% gmail
+                'yahoo.com', 'yahoo.com', 'yahoo.com', 'yahoo.com', // 20% yahoo
+                'hotmail.com', 'hotmail.com', 'hotmail.com', // 15% hotmail
+                'outlook.com', 'outlook.com', 'outlook.com', // 15% outlook
+                'icloud.com', // 5% icloud
+                'protonmail.com', // 5% proton
+                'yandex.com', // 5% yandex
+                'mail.ru' // 5% mail.ru
+            ];
+            
+            const randomEmailDomain = emailDomains[Math.floor(Math.random() * emailDomains.length)];
+            const emailPrefix = firstName.toLowerCase().replace(/[^a-zA-Z]/g, '') + 
+                              lastName.toLowerCase().replace(/[^a-zA-Z]/g, '').substring(0, 3) + 
+                              Math.floor(Math.random() * 1000);
+            
+            // Generate random phone with Indonesian format as default
+            const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
+            const phone = `+62${randomNumber.toString().substring(0, 9)}`;
+            
+            customerData = {
+                first_name: firstName,
+                last_name: lastName,
+                email: `${emailPrefix}@${randomEmailDomain}`,
+                phone: phone
+            };
+            
+            console.log('✅ Custom customer data created:', {
+                original_name: custom_name,
+                parsed_name: `${firstName} ${lastName}`,
+                email: customerData.email,
+                phone: customerData.phone
+            });
+            
+        } else {
+            console.log('🎲 No custom name provided, generating random customer...');
+            // Get random customer data using existing function
+            customerData = await getRandomCustomerData();
+        }
 
         // Prepare Midtrans API call
         const midtransParams = {
