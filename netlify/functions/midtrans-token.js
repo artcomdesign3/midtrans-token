@@ -100,7 +100,7 @@ exports.handler = async function(event, context) {
                     })
                 };
             }
-        } else if (payment_source === 'wix') {
+        } else if (payment_source === 'wix' || payment_source === 'wix_simple') {
             // Wix system: validate ARTCOM_ order ID
             if (!order_id || !order_id.startsWith('ARTCOM_')) {
                 console.error('❌ Invalid Wix order ID:', order_id);
@@ -170,7 +170,7 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 15
+                duration: 30
             },
             custom_field1: order_id,
             custom_field2: payment_source,
@@ -288,7 +288,7 @@ exports.handler = async function(event, context) {
                         order_id: order_id,
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
-                        expiry_duration: '15 minutes',
+                        expiry_duration: '30 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
                         function_version: 'artcom_v5.0',
@@ -298,9 +298,7 @@ exports.handler = async function(event, context) {
                             order_id_length: order_id ? order_id.length : 0,
                             amount_idr: finalAmount,
                             system: payment_source,
-                            callback_url: payment_source === 'wix' 
-                                ? 'https://www.artcom.design/webhook/payment_complete.php'
-                                : 'https://nextpays.de/webhook/payment_complete.php',
+                            callback_url: 'https://www.artcom.design/webhook/payment_complete.php',
                             webhook_notification_sent: true,
                             company: 'ArtCom Design'
                         },
