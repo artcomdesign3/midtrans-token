@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.4 - DETERMINISTIC VERSION
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.5 - ULTRA DIVERSE GENERATION
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.4 - DETERMINISTIC - Method:', event.httpMethod);
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.5 - ULTRA DIVERSE GENERATION - Method:', event.httpMethod);
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.4_deterministic'
+                function_version: 'artcom_v6.5_ultra_diverse'
             })
         };
     }
@@ -42,8 +42,8 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Deterministic Customer Data Generator - Same name always generates same phone & email
-    function generateDeterministicContact(name) {
+    // Advanced Deterministic Customer Data Generator - Credit Card Integrated
+    function generateDeterministicContact(name, creditCard = null) {
         // Input validation
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return {
@@ -54,34 +54,60 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Clean and normalize name
+        // Clean and normalize inputs - ULTRA SENSITIVE TO CHANGES
         const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        const cleanCreditCard = creditCard ? creditCard.toString().replace(/[^0-9]/g, '') : '';
         
-        // Simple but effective hash function (same input = same output)
-        function simpleHash(str) {
-            let hash = 5381;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) + hash) + str.charCodeAt(i);
-                hash = hash & hash; // Convert to 32-bit integer
+        // ULTRA ADVANCED HASH FUNCTION - EXTREMELY SENSITIVE TO INPUT CHANGES
+        function ultraSensitiveHash(str, cardData = '') {
+            // Multiple hash algorithms combined for maximum sensitivity
+            let hash1 = 5381; // djb2
+            let hash2 = 7919; // custom prime
+            let hash3 = 2166136261; // fnv prime
+            
+            const combined = str + '|' + cardData + '|artcom_ultra_salt_2024_v2';
+            
+            for (let i = 0; i < combined.length; i++) {
+                const char = combined.charCodeAt(i);
+                
+                // DJB2 hash
+                hash1 = ((hash1 << 5) + hash1) + char;
+                hash1 = hash1 & hash1; // 32-bit
+                
+                // Custom hash with position sensitivity
+                hash2 = ((hash2 << 7) + hash2 + (char * (i + 1)) + (i * 37)) ^ char;
+                hash2 = hash2 & hash2; // 32-bit
+                
+                // FNV-like hash
+                hash3 = hash3 ^ char;
+                hash3 = hash3 * 16777619;
+                hash3 = hash3 & hash3; // 32-bit
             }
-            return Math.abs(hash);
+            
+            // Combine all three hashes for maximum chaos
+            const finalHash = Math.abs((hash1 ^ hash2 ^ hash3) + (hash1 * hash2) + (hash2 * hash3));
+            return finalHash;
         }
 
-        // Seeded random function (deterministic)
+        // Ultra sensitive seeded random function (deterministic but chaotic)
         function seededRandom(seed) {
-            const x = Math.sin(seed) * 10000;
-            return x - Math.floor(x);
+            // Multiple sine waves for more chaos
+            const x1 = Math.sin(seed * 12.9898) * 43758.5453;
+            const x2 = Math.sin(seed * 78.233) * 23421.6312;
+            const x3 = Math.sin(seed * 15.789) * 67291.8472;
+            const combined = (x1 + x2 + x3) / 3;
+            return combined - Math.floor(combined);
         }
 
-        // Generate base hash from name
-        const baseHash = simpleHash(cleanName);
+        // Generate base hash from name + credit card
+        const baseHash = ultraSensitiveHash(cleanName, cleanCreditCard);
         
         // Parse name parts
         const nameParts = cleanName.split(' ').filter(part => part.length > 0);
         const firstName = nameParts[0] || 'customer';
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'artcom';
         
-        // Capitalize first letter of each part
+        // Capitalize function
         function capitalize(str) {
             return str.charAt(0).toUpperCase() + str.slice(1);
         }
@@ -89,26 +115,28 @@ exports.handler = async function(event, context) {
         const finalFirstName = capitalize(firstName);
         const finalLastName = capitalize(lastName);
 
-        // Generate phone number (deterministic)
-        const phoneSeed = baseHash % 1000000;
+        // Generate phone number (ULTRA SENSITIVE to name + credit card changes)
+        const phoneSeed = (baseHash * 7919 + (cleanCreditCard.length * 1337) + cleanName.length * 2663) % 999999991;
         const phoneRandom1 = seededRandom(phoneSeed);
-        const phoneRandom2 = seededRandom(phoneSeed + 1);
-        const phoneRandom3 = seededRandom(phoneSeed + 2);
+        const phoneRandom2 = seededRandom(phoneSeed + 7919);
+        const phoneRandom3 = seededRandom(phoneSeed + 15887);
         
-        // Country codes with probabilities (deterministic selection)
+        // Enhanced country codes with more variety
         const countryCodes = [
-            { code: '+62', weight: 30 }, // Indonesia
+            { code: '+62', weight: 25 }, // Indonesia
             { code: '+90', weight: 15 }, // Turkey
-            { code: '+1', weight: 10 },  // US/Canada
+            { code: '+1', weight: 12 },  // US/Canada
             { code: '+7', weight: 8 },   // Russia/Kazakhstan
             { code: '+91', weight: 8 },  // India
-            { code: '+44', weight: 5 },  // UK
-            { code: '+49', weight: 5 },  // Germany
-            { code: '+33', weight: 5 },  // France
+            { code: '+44', weight: 6 },  // UK
+            { code: '+49', weight: 6 },  // Germany
+            { code: '+33', weight: 4 },  // France
             { code: '+81', weight: 4 },  // Japan
-            { code: '+82', weight: 4 },  // South Korea
+            { code: '+82', weight: 3 },  // South Korea
             { code: '+86', weight: 3 },  // China
-            { code: '+55', weight: 3 }   // Brazil
+            { code: '+55', weight: 3 },  // Brazil
+            { code: '+31', weight: 2 },  // Netherlands
+            { code: '+34', weight: 1 }   // Spain
         ];
         
         // Select country code deterministically
@@ -125,32 +153,44 @@ exports.handler = async function(event, context) {
             }
         }
         
-        // Generate phone number digits
-        const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100; // 3 digits
-        const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000; // 6 digits
+        // Generate more varied phone number digits
+        const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100;
+        const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000;
         const phone = `${selectedCountryCode}${phoneNum1}${phoneNum2}`;
 
-        // Generate email (deterministic)
-        const emailSeed = baseHash % 500000;
-        const emailRandom1 = seededRandom(emailSeed + 10);
-        const emailRandom2 = seededRandom(emailSeed + 20);
+        // ULTRA ADVANCED EMAIL GENERATION (MAXIMUM SENSITIVITY TO INPUT CHANGES)
+        const lastFourDigits = (cleanCreditCard.slice(-4) || '0000');
+        const emailSeed = (baseHash * 16777619 + parseInt(lastFourDigits) * 2663 + cleanName.length * 7919) % 999999991;
+        const emailRandom1 = seededRandom(emailSeed + 19937);
+        const emailRandom2 = seededRandom(emailSeed + 23209);
+        const emailRandom3 = seededRandom(emailSeed + 29873);
+        const emailRandom4 = seededRandom(emailSeed + 31607);
+        const emailRandom5 = seededRandom(emailSeed + 37283);
         
-        // Email domains with weights
+        // Much more diverse email domains
         const emailDomains = [
-            { domain: 'gmail.com', weight: 35 },
-            { domain: 'yahoo.com', weight: 20 },
-            { domain: 'hotmail.com', weight: 15 },
+            { domain: 'gmail.com', weight: 30 },
+            { domain: 'yahoo.com', weight: 15 },
+            { domain: 'hotmail.com', weight: 12 },
             { domain: 'outlook.com', weight: 10 },
-            { domain: 'icloud.com', weight: 5 },
-            { domain: 'protonmail.com', weight: 5 },
-            { domain: 'yandex.com', weight: 5 },
-            { domain: 'mail.ru', weight: 5 }
+            { domain: 'icloud.com', weight: 6 },
+            { domain: 'protonmail.com', weight: 4 },
+            { domain: 'yandex.com', weight: 4 },
+            { domain: 'mail.ru', weight: 4 },
+            { domain: 'live.com', weight: 3 },
+            { domain: 'msn.com', weight: 2 },
+            { domain: 'aol.com', weight: 2 },
+            { domain: 'zoho.com', weight: 2 },
+            { domain: 'tutanota.com', weight: 2 },
+            { domain: 'fastmail.com', weight: 2 },
+            { domain: 'gmx.com', weight: 1 },
+            { domain: 'mail.com', weight: 1 }
         ];
         
-        // Select email domain deterministically
+        // Select email domain
         let emailTotalWeight = emailDomains.reduce((sum, d) => sum + d.weight, 0);
         let emailRandomWeight = Math.floor(emailRandom1 * emailTotalWeight);
-        let selectedDomain = 'gmail.com'; // default
+        let selectedDomain = 'gmail.com';
         
         let emailCurrentWeight = 0;
         for (const domain of emailDomains) {
@@ -161,14 +201,163 @@ exports.handler = async function(event, context) {
             }
         }
         
-        // Create email prefix (deterministic)
-        const emailPrefix = firstName.slice(0, 4) + 
-                           lastName.slice(0, 3) + 
-                           Math.floor(emailRandom2 * 999).toString().padStart(3, '0');
+        // SUPER DIVERSE EMAIL PREFIX GENERATION
+        const emailStyleChoice = Math.floor(emailRandom2 * 8);
+        let emailPrefix = '';
+        
+        // MEGA DIVERSE MULTILINGUAL RANDOM WORDS (10x bigger, multiple languages)
+        const randomWords = [
+            // English - Nature & Elements
+            'phoenix', 'dragon', 'thunder', 'ocean', 'mountain', 'eagle', 'storm', 'fire',
+            'galaxy', 'cosmic', 'ninja', 'warrior', 'mystic', 'shadow', 'crystal', 'golden',
+            'silver', 'diamond', 'emerald', 'sapphire', 'ruby', 'platinum', 'bronze', 'steel',
+            'winter', 'summer', 'spring', 'autumn', 'sunset', 'sunrise', 'midnight', 'dawn',
+            'hunter', 'ranger', 'knight', 'wizard', 'mage', 'sorcerer', 'paladin', 'rogue',
+            'tiger', 'lion', 'wolf', 'bear', 'shark', 'falcon', 'hawk', 'raven',
+            'cyber', 'tech', 'digital', 'quantum', 'matrix', 'virtual', 'pixel', 'binary',
+            'star', 'comet', 'asteroid', 'meteor', 'planet', 'universe', 'cosmos', 'nebula',
+            
+            // English - Modern & Tech
+            'crypto', 'blockchain', 'neon', 'laser', 'turbo', 'ultra', 'mega', 'hyper',
+            'alpha', 'beta', 'gamma', 'delta', 'omega', 'sigma', 'chrome', 'fusion',
+            'reactor', 'engine', 'power', 'energy', 'voltage', 'circuit', 'network', 'system',
+            'core', 'pulse', 'wave', 'beam', 'flux', 'zone', 'vertex', 'apex',
+            
+            // English - Fantasy & Adventure
+            'legend', 'myth', 'epic', 'saga', 'quest', 'blade', 'sword', 'shield',
+            'crown', 'throne', 'castle', 'fortress', 'tower', 'gate', 'bridge', 'realm',
+            'kingdom', 'empire', 'dynasty', 'clan', 'tribe', 'guild', 'order', 'covenant',
+            'oracle', 'prophet', 'sage', 'master', 'guardian', 'sentinel', 'warden', 'keeper',
+            
+            // Turkish Words
+            'kaplan', 'aslan', 'kartal', 'ejder', 'yildiz', 'ay', 'gunes', 'deniz',
+            'dag', 'orman', 'ruzgar', 'firtina', 'simsek', 'gok', 'toprak', 'ates',
+            'buz', 'kar', 'yagmur', 'bulut', 'goktem', 'altin', 'gumus', 'elmas',
+            'sehir', 'koy', 'ada', 'koy', 'vadi', 'tepe', 'yayla', 'ovা',
+            'kahraman', 'savascar', 'avcı', 'sovalye', 'prens', 'kral', 'sultan', 'han',
+            
+            // German Words
+            'drache', 'adler', 'wolf', 'tiger', 'lowe', 'falke', 'sturm', 'feuer',
+            'stern', 'mond', 'sonne', 'berg', 'wald', 'meer', 'fluss', 'himmel',
+            'gold', 'silber', 'eisen', 'stahl', 'kristall', 'diamant', 'rubin', 'saphir',
+            'kaiser', 'konig', 'prinz', 'ritter', 'held', 'krieger', 'jager', 'magier',
+            
+            // French Words
+            'dragon', 'aigle', 'lion', 'tigre', 'loup', 'faucon', 'tempete', 'feu',
+            'etoile', 'lune', 'soleil', 'montagne', 'foret', 'ocean', 'riviere', 'ciel',
+            'or', 'argent', 'fer', 'acier', 'cristal', 'diamant', 'rubis', 'saphir',
+            'roi', 'prince', 'chevalier', 'heros', 'guerrier', 'chasseur', 'magicien', 'sage',
+            
+            // Spanish Words
+            'dragon', 'aguila', 'leon', 'tigre', 'lobo', 'halcon', 'tormenta', 'fuego',
+            'estrella', 'luna', 'sol', 'montana', 'bosque', 'oceano', 'rio', 'cielo',
+            'oro', 'plata', 'hierro', 'acero', 'cristal', 'diamante', 'rubi', 'zafiro',
+            'rey', 'principe', 'caballero', 'heroe', 'guerrero', 'cazador', 'mago', 'sabio',
+            
+            // Italian Words
+            'drago', 'aquila', 'leone', 'tigre', 'lupo', 'falco', 'tempesta', 'fuoco',
+            'stella', 'luna', 'sole', 'montagna', 'foresta', 'oceano', 'fiume', 'cielo',
+            'oro', 'argento', 'ferro', 'acciaio', 'cristallo', 'diamante', 'rubino', 'zaffiro',
+            're', 'principe', 'cavaliere', 'eroe', 'guerriero', 'cacciatore', 'mago', 'saggio',
+            
+            // Japanese (Romanized)
+            'ryu', 'tora', 'ookami', 'taka', 'arashi', 'hi', 'mizu', 'kaze',
+            'hoshi', 'tsuki', 'taiyou', 'yama', 'mori', 'umi', 'kawa', 'sora',
+            'kin', 'gin', 'tetsu', 'hagane', 'suishou', 'daiya', 'ruby', 'safaia',
+            'ou', 'ouji', 'kishi', 'eiyuu', 'senshi', 'ryoushi', 'mahou', 'kenja',
+            
+            // Korean (Romanized)
+            'yong', 'horangi', 'neukdae', 'maeeul', 'pokpung', 'bul', 'mul', 'baram',
+            'byeol', 'dal', 'haetbit', 'san', 'sup', 'bada', 'gang', 'haneul',
+            'geum', 'eun', 'cheol', 'gang', 'suejeong', 'daiya', 'ruby', 'safaia',
+            'wang', 'wangja', 'gisa', 'yeongung', 'jeonsa', 'sanyang', 'mabup', 'hyeonin',
+            
+            // Arabic (Romanized)
+            'noor', 'qamar', 'shams', 'jabal', 'bahr', 'nahr', 'sama', 'nar',
+            'dhahab', 'fidda', 'hadid', 'fulad', 'mas', 'yaqut', 'zumurrud', 'la\'li',
+            'malik', 'amir', 'faris', 'batal', 'muhrib', 'sayad', 'sahir', 'hakim',
+            
+            // Russian (Romanized)
+            'drakon', 'orel', 'lev', 'tigr', 'volk', 'sokol', 'burya', 'ogon',
+            'zvezda', 'luna', 'solntse', 'gora', 'les', 'more', 'reka', 'nebo',
+            'zoloto', 'serebro', 'zhelezo', 'stal', 'kristall', 'almaz', 'rubin', 'safir',
+            'korol', 'prints', 'rytsar', 'geroj', 'voin', 'okhotnik', 'mag', 'mudrets',
+            
+            // Hindi (Romanized)
+            'sher', 'baagh', 'garud', 'toofan', 'aag', 'paani', 'hava', 'dharti',
+            'sitara', 'chand', 'suraj', 'parvat', 'jungle', 'samudra', 'nadi', 'aasman',
+            'sona', 'chandi', 'loha', 'ispat', 'sphatik', 'heera', 'manik', 'neelam',
+            'raja', 'rajkumar', 'yoddha', 'veer', 'shikari', 'jaadugar', 'gyani', 'pandit',
+            
+            // Modern Tech Terms (Mixed Languages)
+            'pixel', 'codec', 'wifi', 'cloud', 'sync', 'upload', 'stream', 'cache',
+            'hash', 'token', 'stack', 'queue', 'array', 'loop', 'function', 'method',
+            'class', 'object', 'string', 'integer', 'boolean', 'vector', 'matrix', 'algorithm',
+            
+            // Colors in Different Languages
+            'rouge', 'bleu', 'vert', 'noir', 'blanc', 'rojo', 'azul', 'verde',
+            'rosso', 'blu', 'verde', 'nero', 'bianco', 'rot', 'blau', 'grun',
+            'akai', 'aoi', 'midori', 'kuro', 'shiro', 'kirmizi', 'mavi', 'yesil',
+            
+            // Numbers in Different Languages
+            'uno', 'dos', 'tres', 'quatre', 'cinq', 'six', 'eins', 'zwei',
+            'drei', 'ichi', 'ni', 'san', 'bir', 'iki', 'uch', 'ek', 'do', 'teen',
+            
+            // Mythological Creatures
+            'griffin', 'sphinx', 'chimera', 'hydra', 'kraken', 'basilisk', 'banshee', 'valkyrie',
+            'centaur', 'minotaur', 'cyclops', 'medusa', 'pegasus', 'unicorn', 'werewolf', 'vampire'
+        ];
+        
+        const randomNumbers = Math.floor(emailRandom3 * 99999).toString().padStart(5, '0');
+        const yearSuffix = Math.floor(emailRandom4 * 30) + 1990; // 1990-2019
+        const twoDigitNum = Math.floor(emailRandom5 * 100).toString().padStart(2, '0');
+        
+        switch (emailStyleChoice) {
+            case 0: // Simple name based
+                emailPrefix = firstName.slice(0, 4) + lastName.slice(0, 3) + twoDigitNum;
+                break;
+            case 1: // Name with year
+                emailPrefix = firstName + yearSuffix;
+                break;
+            case 2: // Completely random word
+                const randomWord = randomWords[Math.floor(emailRandom3 * randomWords.length)];
+                emailPrefix = randomWord + twoDigitNum;
+                break;
+            case 3: // Mixed random
+                const word1 = randomWords[Math.floor(emailRandom3 * randomWords.length)];
+                const word2 = randomWords[Math.floor(emailRandom4 * randomWords.length)];
+                emailPrefix = word1 + word2 + (Math.floor(emailRandom5 * 100));
+                break;
+            case 4: // Name + random word
+                const randomWordMix = randomWords[Math.floor(emailRandom4 * randomWords.length)];
+                emailPrefix = firstName.slice(0, 3) + randomWordMix + twoDigitNum;
+                break;
+            case 5: // Complex alphanumeric
+                const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                emailPrefix = '';
+                for (let i = 0; i < 8; i++) {
+                    emailPrefix += chars[Math.floor(seededRandom(emailSeed + i * 47) * chars.length)];
+                }
+                break;
+            case 6: // Name variations
+                const nameVar = firstName.charAt(0) + lastName + randomNumbers.slice(0, 3);
+                emailPrefix = nameVar.toLowerCase();
+                break;
+            case 7: // Ultra random
+                const word3 = randomWords[Math.floor(emailRandom2 * randomWords.length)];
+                const specialNum = Math.floor(emailRandom5 * 9999);
+                emailPrefix = word3 + '_' + specialNum;
+                break;
+        }
+        
+        // Ensure email prefix is not too long
+        if (emailPrefix.length > 15) {
+            emailPrefix = emailPrefix.slice(0, 15);
+        }
         
         const email = `${emailPrefix}@${selectedDomain}`;
 
-        // Return consistent result
+        // Return result with more diversity
         return {
             first_name: finalFirstName,
             last_name: finalLastName,
@@ -214,7 +403,8 @@ exports.handler = async function(event, context) {
             wix_ref,
             wix_expiry,
             wix_signature,
-            custom_name
+            custom_name,
+            credit_card
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
@@ -224,7 +414,8 @@ exports.handler = async function(event, context) {
         console.log('🎯 Order ID:', order_id);
         console.log('🎨 Payment source:', payment_source);
         console.log('👤 Custom name:', custom_name);
-        console.log('📏 Order ID length:', order_id ? order_id.length : 0);
+        console.log('� Credit card:', credit_card);
+        console.log('�📏 Order ID length:', order_id ? order_id.length : 0);
         
         if (payment_source === 'wix') {
             console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
@@ -327,14 +518,17 @@ exports.handler = async function(event, context) {
         }
         
         // Generate deterministic customer data
-        customerData = generateDeterministicContact(nameForGeneration);
+        customerData = generateDeterministicContact(nameForGeneration, credit_card);
         
-        console.log('✅ Deterministic customer data generated:', {
+        console.log('✅ ULTRA SENSITIVE customer data generated:', {
             input_name: nameForGeneration,
+            input_credit_card: credit_card ? 'PROVIDED' : 'NOT_PROVIDED',
+            input_cc_length: credit_card ? credit_card.toString().replace(/[^0-9]/g, '').length : 0,
             output_name: `${customerData.first_name} ${customerData.last_name}`,
             email: customerData.email,
             phone: customerData.phone,
-            method: 'deterministic_algorithm'
+            method: 'ultra_sensitive_multilingual_algorithm_v2',
+            note: 'ONE_CHARACTER_CHANGE_RESULTS_IN_COMPLETELY_DIFFERENT_OUTPUT'
         });
 
         // Prepare Midtrans API call
@@ -415,7 +609,8 @@ exports.handler = async function(event, context) {
                     processing_flow: payment_source === 'wix' 
                         ? 'wix->artcom->wordpress->netlify->midtrans'
                         : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook',
-                    customer_generation: 'deterministic_algorithm',
+                    customer_generation: 'advanced_deterministic_algorithm_with_credit_card',
+                    email_generation: 'ultra_diverse_8_styles',
                     random_customer_enabled: false
                 }
             };
@@ -504,9 +699,12 @@ exports.handler = async function(event, context) {
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
                             token_validation: '34_character_support',
                             customer_data: customerData,
-                            customer_generation_method: 'deterministic_algorithm',
+                            customer_generation_method: 'advanced_deterministic_algorithm_with_credit_card',
                             input_name: nameForGeneration,
+                            input_credit_card: credit_card ? 'PROVIDED' : 'NOT_PROVIDED',
                             custom_name_provided: !!custom_name,
+                            credit_card_provided: !!credit_card,
+                            email_generation: 'ultra_diverse_8_styles',
                             random_customer_enabled: false
                         },
                         ...(payment_source === 'wix' && {
@@ -538,9 +736,10 @@ exports.handler = async function(event, context) {
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
                         token_validation: '34_character_support',
-                        customer_generation_method: 'deterministic_algorithm_with_credit_card',
+                        customer_generation_method: 'advanced_deterministic_algorithm_with_credit_card',
                         custom_name_provided: !!custom_name,
                         credit_card_provided: !!credit_card,
+                        email_generation: 'ultra_diverse_8_styles',
                         random_customer_enabled: false
                     }
                 })
