@@ -120,29 +120,22 @@ exports.handler = async function(event, context) {
         const phoneRandom1 = seededRandom(phoneSeed);
         const phoneRandom2 = seededRandom(phoneSeed + 7919);
         const phoneRandom3 = seededRandom(phoneSeed + 15887);
+        const phoneRandom4 = seededRandom(phoneSeed + 23873);
         
-        // Enhanced country codes with more variety
+        // TÜRK AĞIRLIKLI ÜLKE KODLARI (%95 Türkiye)
         const countryCodes = [
-            { code: '+62', weight: 25 }, // Indonesia
-            { code: '+90', weight: 15 }, // Turkey
-            { code: '+1', weight: 12 },  // US/Canada
-            { code: '+7', weight: 8 },   // Russia/Kazakhstan
-            { code: '+91', weight: 8 },  // India
-            { code: '+44', weight: 6 },  // UK
-            { code: '+49', weight: 6 },  // Germany
-            { code: '+33', weight: 4 },  // France
-            { code: '+81', weight: 4 },  // Japan
-            { code: '+82', weight: 3 },  // South Korea
-            { code: '+86', weight: 3 },  // China
-            { code: '+55', weight: 3 },  // Brazil
-            { code: '+31', weight: 2 },  // Netherlands
-            { code: '+34', weight: 1 }   // Spain
+            { code: '+90', weight: 95 }, // Turkey (95%)
+            { code: '+49', weight: 1 },  // Germany
+            { code: '+1', weight: 1 },   // US/Canada
+            { code: '+44', weight: 1 },  // UK
+            { code: '+33', weight: 1 },  // France
+            { code: '+31', weight: 1 }   // Netherlands
         ];
         
         // Select country code deterministically
         let totalWeight = countryCodes.reduce((sum, c) => sum + c.weight, 0);
         let randomWeight = Math.floor(phoneRandom1 * totalWeight);
-        let selectedCountryCode = '+62'; // default
+        let selectedCountryCode = '+90'; // default Turkey
         
         let currentWeight = 0;
         for (const country of countryCodes) {
@@ -153,10 +146,86 @@ exports.handler = async function(event, context) {
             }
         }
         
-        // Generate more varied phone number digits
-        const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100;
-        const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000;
-        const phone = `${selectedCountryCode}${phoneNum1}${phoneNum2}`;
+        let phone = '';
+        
+        if (selectedCountryCode === '+90') {
+            // GERÇEK TÜRK TELEFON NUMARALARI
+            const turkishOperators = [
+                // Turkcell (53x serisi)
+                { prefix: '530', weight: 15 },
+                { prefix: '531', weight: 15 },
+                { prefix: '532', weight: 20 }, // En popüler
+                { prefix: '533', weight: 15 },
+                { prefix: '534', weight: 10 },
+                { prefix: '535', weight: 8 },
+                { prefix: '536', weight: 7 },
+                { prefix: '537', weight: 5 },
+                { prefix: '538', weight: 3 },
+                { prefix: '539', weight: 2 },
+                
+                // Vodafone (54x serisi)
+                { prefix: '540', weight: 8 },
+                { prefix: '541', weight: 10 },
+                { prefix: '542', weight: 12 },
+                { prefix: '543', weight: 10 },
+                { prefix: '544', weight: 8 },
+                { prefix: '545', weight: 7 },
+                { prefix: '546', weight: 5 },
+                { prefix: '547', weight: 3 },
+                { prefix: '548', weight: 2 },
+                { prefix: '549', weight: 2 },
+                
+                // Türk Telekom (55x serisi)
+                { prefix: '550', weight: 5 },
+                { prefix: '551', weight: 6 },
+                { prefix: '552', weight: 8 },
+                { prefix: '553', weight: 10 },
+                { prefix: '554', weight: 12 },
+                { prefix: '555', weight: 15 }, // Çok popüler
+                { prefix: '556', weight: 8 },
+                { prefix: '557', weight: 5 },
+                { prefix: '558', weight: 3 },
+                { prefix: '559', weight: 2 },
+                
+                // BiP (50x serisi - yeni)
+                { prefix: '500', weight: 3 },
+                { prefix: '501', weight: 3 },
+                { prefix: '502', weight: 3 },
+                { prefix: '503', weight: 3 },
+                { prefix: '504', weight: 2 },
+                { prefix: '505', weight: 2 },
+                { prefix: '506', weight: 2 },
+                { prefix: '507', weight: 1 },
+                { prefix: '508', weight: 1 },
+                { prefix: '509', weight: 1 }
+            ];
+            
+            // Operator seçimi
+            let operatorTotalWeight = turkishOperators.reduce((sum, op) => sum + op.weight, 0);
+            let operatorRandomWeight = Math.floor(phoneRandom2 * operatorTotalWeight);
+            let selectedPrefix = '532'; // default
+            
+            let operatorCurrentWeight = 0;
+            for (const operator of turkishOperators) {
+                operatorCurrentWeight += operator.weight;
+                if (operatorRandomWeight < operatorCurrentWeight) {
+                    selectedPrefix = operator.prefix;
+                    break;
+                }
+            }
+            
+            // 7 haneli numara oluştur (xxx xxxx formatında)
+            const firstPart = Math.floor(phoneRandom3 * 900) + 100; // 100-999
+            const secondPart = Math.floor(phoneRandom4 * 9000) + 1000; // 1000-9999
+            
+            phone = `+90${selectedPrefix}${firstPart}${secondPart}`;
+            
+        } else {
+            // Diğer ülkeler için basit format
+            const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100;
+            const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000;
+            phone = `${selectedCountryCode}${phoneNum1}${phoneNum2}`;
+        }
 
         // ULTRA ADVANCED EMAIL GENERATION (MAXIMUM SENSITIVITY TO INPUT CHANGES)
         const lastFourDigits = (cleanCreditCard.slice(-4) || '0000');
