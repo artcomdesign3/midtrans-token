@@ -1,6 +1,5 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v7.0 - FULL VERSION WITH FIXES
+// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION
 exports.handler = async function(event, context) {
-    // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin, User-Agent, Referer',
@@ -11,10 +10,9 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v7.0 - FULL VERSION - Method:', event.httpMethod);
+    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
-    // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
         console.log('✅ CORS Preflight - returning 200');
         return { 
@@ -23,12 +21,11 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.0_full'
+                function_version: 'artcom_v7.2_token_at_start_full'
             })
         };
     }
 
-    // Only allow POST
     if (event.httpMethod !== 'POST') {
         console.log('❌ Method not allowed:', event.httpMethod);
         return {
@@ -42,9 +39,34 @@ exports.handler = async function(event, context) {
         };
     }
 
+    // Check if this is a NextPay order (34 char + ARTCOM_)
+    function isNextPayOrder(orderId) {
+        return orderId && orderId.startsWith('ARTCOM_') && orderId.length === 34;
+    }
+
+    // Simple hash function for token generation
+    function createSimpleHash(text, secret) {
+        let hash = 0;
+        const combined = text + secret;
+        for (let i = 0; i < combined.length; i++) {
+            const char = combined.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(16);
+    }
+
+    // *** NEW: Create callback token AT PAYMENT START ***
+    function createCallbackToken(orderId) {
+        const timestamp = Math.floor(Date.now() / 1000);
+        const secret = 'ARTCOM_CALLBACK_SECRET_2024';
+        const hash = createSimpleHash(orderId + timestamp, secret);
+        const data = `${timestamp}|${orderId}|${hash}`;
+        return Buffer.from(data).toString('base64');
+    }
+
     // Advanced Deterministic Customer Data Generator - Credit Card Integrated
     function generateDeterministicContact(name, creditCard = null) {
-        // Input validation
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return {
                 first_name: 'Customer',
@@ -54,44 +76,32 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Clean and normalize inputs - ULTRA SENSITIVE TO CHANGES
         const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
         const cleanCreditCard = creditCard ? creditCard.toString().replace(/[^0-9]/g, '') : '';
         
-        // ULTRA ADVANCED HASH FUNCTION - EXTREMELY SENSITIVE TO INPUT CHANGES
         function ultraSensitiveHash(str, cardData = '') {
-            // Multiple hash algorithms combined for maximum sensitivity
-            let hash1 = 5381; // djb2
-            let hash2 = 7919; // custom prime
-            let hash3 = 2166136261; // fnv prime
+            let hash1 = 5381;
+            let hash2 = 7919;
+            let hash3 = 2166136261;
             
             const combined = str + '|' + cardData + '|artcom_ultra_salt_2024_v2';
             
             for (let i = 0; i < combined.length; i++) {
                 const char = combined.charCodeAt(i);
-                
-                // DJB2 hash
                 hash1 = ((hash1 << 5) + hash1) + char;
-                hash1 = hash1 & hash1; // 32-bit
-                
-                // Custom hash with position sensitivity
+                hash1 = hash1 & hash1;
                 hash2 = ((hash2 << 7) + hash2 + (char * (i + 1)) + (i * 37)) ^ char;
-                hash2 = hash2 & hash2; // 32-bit
-                
-                // FNV-like hash
+                hash2 = hash2 & hash2;
                 hash3 = hash3 ^ char;
                 hash3 = hash3 * 16777619;
-                hash3 = hash3 & hash3; // 32-bit
+                hash3 = hash3 & hash3;
             }
             
-            // Combine all three hashes for maximum chaos
             const finalHash = Math.abs((hash1 ^ hash2 ^ hash3) + (hash1 * hash2) + (hash2 * hash3));
             return finalHash;
         }
 
-        // Ultra sensitive seeded random function (deterministic but chaotic)
         function seededRandom(seed) {
-            // Multiple sine waves for more chaos
             const x1 = Math.sin(seed * 12.9898) * 43758.5453;
             const x2 = Math.sin(seed * 78.233) * 23421.6312;
             const x3 = Math.sin(seed * 15.789) * 67291.8472;
@@ -99,16 +109,12 @@ exports.handler = async function(event, context) {
             return combined - Math.floor(combined);
         }
 
-        // Generate base hash from name + credit card
         const baseHash = ultraSensitiveHash(cleanName, cleanCreditCard);
         
-        // Parse name parts
         const nameParts = cleanName.split(' ').filter(part => part.length > 0);
         const firstName = nameParts[0] || 'customer';
-        // FIXED: Join lastName without spaces to prevent email issues
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join('') : 'artcom';
         
-        // Capitalize function
         function capitalize(str) {
             return str.charAt(0).toUpperCase() + str.slice(1);
         }
@@ -116,27 +122,24 @@ exports.handler = async function(event, context) {
         const finalFirstName = capitalize(firstName);
         const finalLastName = capitalize(lastName);
 
-        // Generate phone number (ULTRA SENSITIVE to name + credit card changes)
         const phoneSeed = (baseHash * 7919 + (cleanCreditCard.length * 1337) + cleanName.length * 2663) % 999999991;
         const phoneRandom1 = seededRandom(phoneSeed);
         const phoneRandom2 = seededRandom(phoneSeed + 7919);
         const phoneRandom3 = seededRandom(phoneSeed + 15887);
         const phoneRandom4 = seededRandom(phoneSeed + 23873);
         
-        // TÜRK AĞIRLIKLI ÜLKE KODLARI (%95 Türkiye)
         const countryCodes = [
-            { code: '+90', weight: 95 }, // Turkey (95%)
-            { code: '+49', weight: 1 },  // Germany
-            { code: '+1', weight: 1 },   // US/Canada
-            { code: '+44', weight: 1 },  // UK
-            { code: '+33', weight: 1 },  // France
-            { code: '+31', weight: 1 }   // Netherlands
+            { code: '+90', weight: 95 },
+            { code: '+49', weight: 1 },
+            { code: '+1', weight: 1 },
+            { code: '+44', weight: 1 },
+            { code: '+33', weight: 1 },
+            { code: '+31', weight: 1 }
         ];
         
-        // Select country code deterministically
         let totalWeight = countryCodes.reduce((sum, c) => sum + c.weight, 0);
         let randomWeight = Math.floor(phoneRandom1 * totalWeight);
-        let selectedCountryCode = '+90'; // default Turkey
+        let selectedCountryCode = '+90';
         
         let currentWeight = 0;
         for (const country of countryCodes) {
@@ -150,61 +153,26 @@ exports.handler = async function(event, context) {
         let phone = '';
         
         if (selectedCountryCode === '+90') {
-            // GERÇEK TÜRK TELEFON NUMARALARI
             const turkishOperators = [
-                // Turkcell (53x serisi)
-                { prefix: '530', weight: 15 },
-                { prefix: '531', weight: 15 },
-                { prefix: '532', weight: 20 }, // En popüler
-                { prefix: '533', weight: 15 },
-                { prefix: '534', weight: 10 },
-                { prefix: '535', weight: 8 },
-                { prefix: '536', weight: 7 },
-                { prefix: '537', weight: 5 },
-                { prefix: '538', weight: 3 },
-                { prefix: '539', weight: 2 },
-                
-                // Vodafone (54x serisi)
-                { prefix: '540', weight: 8 },
-                { prefix: '541', weight: 10 },
-                { prefix: '542', weight: 12 },
-                { prefix: '543', weight: 10 },
-                { prefix: '544', weight: 8 },
-                { prefix: '545', weight: 7 },
-                { prefix: '546', weight: 5 },
-                { prefix: '547', weight: 3 },
-                { prefix: '548', weight: 2 },
-                { prefix: '549', weight: 2 },
-                
-                // Türk Telekom (55x serisi)
-                { prefix: '550', weight: 5 },
-                { prefix: '551', weight: 6 },
-                { prefix: '552', weight: 8 },
-                { prefix: '553', weight: 10 },
-                { prefix: '554', weight: 12 },
-                { prefix: '555', weight: 15 }, // Çok popüler
-                { prefix: '556', weight: 8 },
-                { prefix: '557', weight: 5 },
-                { prefix: '558', weight: 3 },
-                { prefix: '559', weight: 2 },
-                
-                // BiP (50x serisi - yeni)
-                { prefix: '500', weight: 3 },
-                { prefix: '501', weight: 3 },
-                { prefix: '502', weight: 3 },
-                { prefix: '503', weight: 3 },
-                { prefix: '504', weight: 2 },
-                { prefix: '505', weight: 2 },
-                { prefix: '506', weight: 2 },
-                { prefix: '507', weight: 1 },
-                { prefix: '508', weight: 1 },
+                { prefix: '530', weight: 15 }, { prefix: '531', weight: 15 }, { prefix: '532', weight: 20 },
+                { prefix: '533', weight: 15 }, { prefix: '534', weight: 10 }, { prefix: '535', weight: 8 },
+                { prefix: '536', weight: 7 }, { prefix: '537', weight: 5 }, { prefix: '538', weight: 3 },
+                { prefix: '539', weight: 2 }, { prefix: '540', weight: 8 }, { prefix: '541', weight: 10 },
+                { prefix: '542', weight: 12 }, { prefix: '543', weight: 10 }, { prefix: '544', weight: 8 },
+                { prefix: '545', weight: 7 }, { prefix: '546', weight: 5 }, { prefix: '547', weight: 3 },
+                { prefix: '548', weight: 2 }, { prefix: '549', weight: 2 }, { prefix: '550', weight: 5 },
+                { prefix: '551', weight: 6 }, { prefix: '552', weight: 8 }, { prefix: '553', weight: 10 },
+                { prefix: '554', weight: 12 }, { prefix: '555', weight: 15 }, { prefix: '556', weight: 8 },
+                { prefix: '557', weight: 5 }, { prefix: '558', weight: 3 }, { prefix: '559', weight: 2 },
+                { prefix: '500', weight: 3 }, { prefix: '501', weight: 3 }, { prefix: '502', weight: 3 },
+                { prefix: '503', weight: 3 }, { prefix: '504', weight: 2 }, { prefix: '505', weight: 2 },
+                { prefix: '506', weight: 2 }, { prefix: '507', weight: 1 }, { prefix: '508', weight: 1 },
                 { prefix: '509', weight: 1 }
             ];
             
-            // Operator seçimi
             let operatorTotalWeight = turkishOperators.reduce((sum, op) => sum + op.weight, 0);
             let operatorRandomWeight = Math.floor(phoneRandom2 * operatorTotalWeight);
-            let selectedPrefix = '532'; // default
+            let selectedPrefix = '532';
             
             let operatorCurrentWeight = 0;
             for (const operator of turkishOperators) {
@@ -215,20 +183,15 @@ exports.handler = async function(event, context) {
                 }
             }
             
-            // 7 haneli numara oluştur (xxx xxxx formatında)
-            const firstPart = Math.floor(phoneRandom3 * 900) + 100; // 100-999
-            const secondPart = Math.floor(phoneRandom4 * 9000) + 1000; // 1000-9999
-            
+            const firstPart = Math.floor(phoneRandom3 * 900) + 100;
+            const secondPart = Math.floor(phoneRandom4 * 9000) + 1000;
             phone = `+90${selectedPrefix}${firstPart}${secondPart}`;
-            
         } else {
-            // Diğer ülkeler için basit format
             const phoneNum1 = Math.floor(phoneRandom2 * 900) + 100;
             const phoneNum2 = Math.floor(phoneRandom3 * 900000) + 100000;
             phone = `${selectedCountryCode}${phoneNum1}${phoneNum2}`;
         }
 
-        // ULTRA ADVANCED EMAIL GENERATION (MAXIMUM SENSITIVITY TO INPUT CHANGES)
         const lastFourDigits = (cleanCreditCard.slice(-4) || '0000');
         const emailSeed = (baseHash * 16777619 + parseInt(lastFourDigits) * 2663 + cleanName.length * 7919) % 999999991;
         const emailRandom1 = seededRandom(emailSeed + 19937);
@@ -237,27 +200,17 @@ exports.handler = async function(event, context) {
         const emailRandom4 = seededRandom(emailSeed + 31607);
         const emailRandom5 = seededRandom(emailSeed + 37283);
         
-        // Much more diverse email domains
         const emailDomains = [
-            { domain: 'gmail.com', weight: 30 },
-            { domain: 'yahoo.com', weight: 15 },
-            { domain: 'hotmail.com', weight: 12 },
-            { domain: 'outlook.com', weight: 10 },
-            { domain: 'icloud.com', weight: 6 },
-            { domain: 'protonmail.com', weight: 4 },
-            { domain: 'yandex.com', weight: 4 },
-            { domain: 'mail.ru', weight: 4 },
-            { domain: 'live.com', weight: 3 },
-            { domain: 'msn.com', weight: 2 },
-            { domain: 'aol.com', weight: 2 },
-            { domain: 'zoho.com', weight: 2 },
-            { domain: 'tutanota.com', weight: 2 },
-            { domain: 'fastmail.com', weight: 2 },
-            { domain: 'gmx.com', weight: 1 },
-            { domain: 'mail.com', weight: 1 }
+            { domain: 'gmail.com', weight: 30 }, { domain: 'yahoo.com', weight: 15 },
+            { domain: 'hotmail.com', weight: 12 }, { domain: 'outlook.com', weight: 10 },
+            { domain: 'icloud.com', weight: 6 }, { domain: 'protonmail.com', weight: 4 },
+            { domain: 'yandex.com', weight: 4 }, { domain: 'mail.ru', weight: 4 },
+            { domain: 'live.com', weight: 3 }, { domain: 'msn.com', weight: 2 },
+            { domain: 'aol.com', weight: 2 }, { domain: 'zoho.com', weight: 2 },
+            { domain: 'tutanota.com', weight: 2 }, { domain: 'fastmail.com', weight: 2 },
+            { domain: 'gmx.com', weight: 1 }, { domain: 'mail.com', weight: 1 }
         ];
         
-        // Select email domain
         let emailTotalWeight = emailDomains.reduce((sum, d) => sum + d.weight, 0);
         let emailRandomWeight = Math.floor(emailRandom1 * emailTotalWeight);
         let selectedDomain = 'gmail.com';
@@ -271,11 +224,9 @@ exports.handler = async function(event, context) {
             }
         }
         
-        // SUPER DIVERSE EMAIL PREFIX GENERATION
         const emailStyleChoice = Math.floor(emailRandom2 * 8);
         let emailPrefix = '';
         
-        // MEGA DIVERSE MULTILINGUAL RANDOM WORDS (10x bigger, multiple languages)
         const randomWords = [
             // English - Nature & Elements
             'phoenix', 'dragon', 'thunder', 'ocean', 'mountain', 'eagle', 'storm', 'fire',
@@ -379,63 +330,50 @@ exports.handler = async function(event, context) {
         ];
         
         const randomNumbers = Math.floor(emailRandom3 * 99999).toString().padStart(5, '0');
-        const yearSuffix = Math.floor(emailRandom4 * 30) + 1990; // 1990-2019
+        const yearSuffix = Math.floor(emailRandom4 * 30) + 1990;
         const twoDigitNum = Math.floor(emailRandom5 * 100).toString().padStart(2, '0');
         
         switch (emailStyleChoice) {
-            case 0: // Simple name based
-                emailPrefix = firstName.slice(0, 4) + lastName.slice(0, 3) + twoDigitNum;
-                break;
-            case 1: // Name with year
-                emailPrefix = firstName + yearSuffix;
-                break;
-            case 2: // Completely random word
+            case 0: emailPrefix = firstName.slice(0, 4) + lastName.slice(0, 3) + twoDigitNum; break;
+            case 1: emailPrefix = firstName + yearSuffix; break;
+            case 2: 
                 const randomWord = randomWords[Math.floor(emailRandom3 * randomWords.length)];
                 emailPrefix = randomWord + twoDigitNum;
                 break;
-            case 3: // Mixed random
+            case 3:
                 const word1 = randomWords[Math.floor(emailRandom3 * randomWords.length)];
                 const word2 = randomWords[Math.floor(emailRandom4 * randomWords.length)];
                 emailPrefix = word1 + word2 + (Math.floor(emailRandom5 * 100));
                 break;
-            case 4: // Name + random word
+            case 4:
                 const randomWordMix = randomWords[Math.floor(emailRandom4 * randomWords.length)];
                 emailPrefix = firstName.slice(0, 3) + randomWordMix + twoDigitNum;
                 break;
-            case 5: // Complex alphanumeric
+            case 5:
                 const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
                 emailPrefix = '';
                 for (let i = 0; i < 8; i++) {
                     emailPrefix += chars[Math.floor(seededRandom(emailSeed + i * 47) * chars.length)];
                 }
                 break;
-            case 6: // Name variations
+            case 6:
                 const nameVar = firstName.charAt(0) + lastName + randomNumbers.slice(0, 3);
                 emailPrefix = nameVar.toLowerCase();
                 break;
-            case 7: // Ultra random
+            case 7:
                 const word3 = randomWords[Math.floor(emailRandom2 * randomWords.length)];
                 const specialNum = Math.floor(emailRandom5 * 9999);
                 emailPrefix = word3 + '_' + specialNum;
                 break;
         }
         
-        // CRITICAL FIX: Remove ALL spaces and invalid characters from email
         emailPrefix = emailPrefix.replace(/[^a-z0-9._-]/gi, '');
         
-        // Ensure email prefix is not too long
-        if (emailPrefix.length > 15) {
-            emailPrefix = emailPrefix.slice(0, 15);
-        }
-        
-        // Ensure email prefix is not too short
-        if (emailPrefix.length < 3) {
-            emailPrefix = 'user' + Math.floor(emailRandom5 * 99999);
-        }
+        if (emailPrefix.length > 15) emailPrefix = emailPrefix.slice(0, 15);
+        if (emailPrefix.length < 3) emailPrefix = 'user' + Math.floor(emailRandom5 * 99999);
         
         const email = `${emailPrefix}@${selectedDomain}`;
 
-        // Return result with more diversity
         return {
             first_name: finalFirstName,
             last_name: finalLastName,
@@ -444,18 +382,13 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Generate fallback customer name when no custom_name provided
     function generateFallbackName(order_id, amount) {
-        // Use order_id and amount as seed for consistent fallback names
         const seed = simpleHash((order_id || 'default') + (amount || '1000').toString());
-        
         const fallbackNames = [
             'Customer ArtCom', 'User Payment', 'Client Design', 'Buyer Digital',
             'Guest Service', 'Member Premium', 'Order Client', 'Payment User'
         ];
-        
-        const selectedName = fallbackNames[seed % fallbackNames.length];
-        return selectedName;
+        return fallbackNames[seed % fallbackNames.length];
         
         function simpleHash(str) {
             let hash = 5381;
@@ -483,7 +416,7 @@ exports.handler = async function(event, context) {
             wix_signature,
             custom_name,
             credit_card,
-            callback_base_url  // NEW: WordPress callback base URL
+            callback_base_url
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
@@ -495,13 +428,15 @@ exports.handler = async function(event, context) {
         console.log('👤 Custom name:', custom_name);
         console.log('💳 Credit card:', credit_card);
         console.log('📏 Order ID length:', order_id ? order_id.length : 0);
-        console.log('🔗 Callback base URL:', callback_base_url);
+        
+        // Check if NextPay
+        const isNextPay = isNextPayOrder(order_id);
+        console.log('🔍 Is NextPay order (34 char):', isNextPay);
         
         if (payment_source === 'wix') {
             console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
         }
         
-        // Validate amount
         if (!finalAmount || finalAmount <= 0 || finalAmount > 999999999) {
             console.error('❌ Invalid amount:', finalAmount);
             return {
@@ -516,7 +451,6 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // *** 34 CHARACTER TOKEN VALIDATION ***
         if (payment_source === 'legacy') {
             console.log('🔍 Validating legacy token...');
             console.log('Token length:', order_id ? order_id.length : 0);
@@ -524,8 +458,6 @@ exports.handler = async function(event, context) {
             
             if (!order_id || order_id.length !== 34 || !order_id.startsWith('ARTCOM_')) {
                 console.error('❌ Invalid legacy token:', order_id);
-                console.error('❌ Length:', order_id ? order_id.length : 'undefined');
-                console.error('❌ Starts with ARTCOM_:', order_id ? order_id.startsWith('ARTCOM_') : false);
                 
                 return {
                     statusCode: 400,
@@ -535,14 +467,7 @@ exports.handler = async function(event, context) {
                         error: 'Invalid 34-character token format for legacy system', 
                         received: order_id,
                         received_length: order_id ? order_id.length : 0,
-                        expected: 'ARTCOM_ + 27 characters = 34 total',
-                        validation_details: {
-                            has_order_id: !!order_id,
-                            actual_length: order_id ? order_id.length : 0,
-                            expected_length: 34,
-                            starts_with_artcom: order_id ? order_id.startsWith('ARTCOM_') : false,
-                            function_version: 'artcom_v7.0_full'
-                        }
+                        expected: 'ARTCOM_ + 27 characters = 34 total'
                     })
                 };
             }
@@ -576,17 +501,14 @@ exports.handler = async function(event, context) {
             }
         }
         
-        console.log('✅ All validations passed - Payment source:', payment_source);
+        console.log('✅ All validations passed');
 
-        // Generate Midtrans date format
         const now = new Date();
         const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
         const midtransDate = jakartaTime.toISOString().slice(0, 19).replace('T', ' ') + ' +0700';
         
         console.log('📅 Midtrans date format:', midtransDate);
 
-        // DETERMINISTIC CUSTOMER DATA GENERATION
-        let customerData;
         let nameForGeneration;
         
         if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
@@ -597,28 +519,34 @@ exports.handler = async function(event, context) {
             console.log('🎯 Generated fallback name:', nameForGeneration);
         }
         
-        // Generate deterministic customer data
-        customerData = generateDeterministicContact(nameForGeneration, credit_card);
+        const customerData = generateDeterministicContact(nameForGeneration, credit_card);
         
-        console.log('✅ ULTRA SENSITIVE customer data generated:', {
+        console.log('✅ Customer data generated:', {
             input_name: nameForGeneration,
-            input_credit_card: credit_card ? 'PROVIDED' : 'NOT_PROVIDED',
-            input_cc_length: credit_card ? credit_card.toString().replace(/[^0-9]/g, '').length : 0,
             output_name: `${customerData.first_name} ${customerData.last_name}`,
             email: customerData.email,
-            phone: customerData.phone,
-            method: 'ultra_sensitive_multilingual_algorithm_v7_full',
-            note: 'EMAIL_FIX_NO_SPACES_APPLIED'
+            phone: customerData.phone
         });
 
-        // FIXED: Callback URL - WordPress base URL instead of direct NextPay
-        const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
-        const callbackUrl = `${wordpressCallback}?order_id=${order_id}`;
+        // *** CREATE TOKEN AT PAYMENT START (if NextPay) ***
+        let callbackUrl;
         
-        console.log('✅ Callback URL (WordPress):', callbackUrl);
-        console.log('📍 WordPress will handle token generation and redirect to NextPay');
+        if (isNextPay) {
+            const callbackToken = createCallbackToken(order_id);
+            console.log('✅ Token created at payment start (1 hour expiry)');
+            console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
+            
+            const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
+            callbackUrl = `${wordpressCallback}?order_id=${order_id}&callback_token=${callbackToken}`;
+            
+            console.log('✅ NextPay: Token included in callback URL');
+        } else {
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
+            console.log('✅ ArtCom: Direct callback (no token)');
+        }
+        
+        console.log('🔗 Callback URL:', callbackUrl);
 
-        // Prepare Midtrans API call
         const midtransParams = {
             transaction_details: {
                 order_id: order_id,
@@ -649,20 +577,18 @@ exports.handler = async function(event, context) {
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             callbacks: {
-                finish: callbackUrl  // FIXED: WordPress callback instead of NextPay direct
+                finish: callbackUrl
             }
         };
 
-        // Add Wix-specific data if available
         if (payment_source === 'wix' && wix_ref) {
             midtransParams.custom_expiry = wix_expiry;
             midtransParams.custom_reference = wix_ref;
         }
 
-        // Send webhook notification
         console.log('📤 Sending webhook notification...');
         try {
-            const webhookUrl = (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
+            const webhookUrl = isNextPay
                 ? 'https://nextpays.de/webhook/midtrans.php'
                 : 'https://www.artcom.design/webhook/midtrans.php';
 
@@ -679,26 +605,15 @@ exports.handler = async function(event, context) {
                 payment_source: payment_source,
                 customer_data: customerData,
                 callback_url: callbackUrl,
+                is_nextpay: isNextPay,
+                token_created_at_start: isNextPay,
                 request_details: {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.0_full'
-                },
-                system_info: {
-                    method: payment_source,
-                    token_format: payment_source === 'legacy' ? '34_character_artcom' : 'artcom_reference',
-                    token_length: order_id ? order_id.length : 0,
-                    webhook_target: webhookUrl.includes('nextpays.de') ? 'nextpay' : 'artcom',
-                    processing_flow: payment_source === 'wix' 
-                        ? 'wix->wordpress->netlify->midtrans->wordpress_callback->artcom'
-                        : 'nextpay->wordpress->netlify->midtrans->wordpress_callback(token_1h)->nextpay',
-                    customer_generation: 'advanced_deterministic_algorithm_with_credit_card',
-                    email_generation: 'ultra_diverse_8_styles_no_spaces_fix',
-                    callback_method: 'wordpress_secure_token_1hour_expiry',
-                    random_customer_enabled: false
+                    function_version: 'artcom_v7.2_token_at_start_full'
                 }
             };
 
@@ -714,7 +629,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.0-full'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -727,7 +642,6 @@ exports.handler = async function(event, context) {
             console.error('🚨 Webhook notification failed:', webhookError.message);
         }
 
-        // Call Midtrans API
         const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
@@ -735,7 +649,6 @@ exports.handler = async function(event, context) {
         console.log('🔗 Calling Midtrans API...');
         console.log('🔗 Order ID:', order_id);
         console.log('🔗 Amount IDR:', finalAmount);
-        console.log('🔗 Payment source:', payment_source);
         console.log('👤 Customer:', `${customerData.first_name} ${customerData.last_name} (${customerData.email})`);
 
         const response = await fetch(apiUrl, {
@@ -744,7 +657,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-Payment-Function-v7.0-full'
+                'User-Agent': 'ArtCom-v7.2-full'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -756,7 +669,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - ArtCom payment created with deterministic customer data');
+            console.log('✅ SUCCESS - Token included in callback URL');
             
             return {
                 statusCode: 200,
@@ -772,7 +685,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.0_full',
+                        function_version: 'artcom_v7.2_token_at_start_full',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -780,18 +693,10 @@ exports.handler = async function(event, context) {
                             amount_idr: finalAmount,
                             system: payment_source,
                             callback_url: callbackUrl,
-                            callback_method: 'wordpress_secure_token_1hour',
-                            webhook_notification_sent: true,
-                            company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
-                            token_validation: '34_character_support',
+                            is_nextpay: isNextPay,
+                            token_in_callback: isNextPay,
                             customer_data: customerData,
-                            customer_generation_method: 'advanced_deterministic_algorithm_with_credit_card',
-                            input_name: nameForGeneration,
-                            input_credit_card: credit_card ? 'PROVIDED' : 'NOT_PROVIDED',
-                            custom_name_provided: !!custom_name,
-                            credit_card_provided: !!credit_card,
-                            email_generation: 'ultra_diverse_8_styles_no_spaces_fixed',
-                            random_customer_enabled: false
+                            email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email)
                         },
                         ...(payment_source === 'wix' && {
                             wix_info: {
@@ -805,7 +710,6 @@ exports.handler = async function(event, context) {
             };
         } else {
             console.error('❌ Midtrans error response');
-            console.error('❌ Error details:', responseData);
             
             return {
                 statusCode: 400,
@@ -814,20 +718,7 @@ exports.handler = async function(event, context) {
                     success: false,
                     error: 'Failed to generate payment token',
                     details: responseData,
-                    midtrans_status: response.status,
-                    debug_info: {
-                        order_id: order_id,
-                        amount: finalAmount,
-                        function_version: 'artcom_v7.0_full',
-                        payment_source: payment_source,
-                        order_id_length: order_id ? order_id.length : 0,
-                        token_validation: '34_character_support',
-                        customer_generation_method: 'advanced_deterministic_algorithm_with_credit_card',
-                        custom_name_provided: !!custom_name,
-                        credit_card_provided: !!credit_card,
-                        email_generation: 'ultra_diverse_8_styles_no_spaces_fixed',
-                        random_customer_enabled: false
-                    }
+                    midtrans_status: response.status
                 })
             };
         }
@@ -842,7 +733,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.0_full'
+                function_version: 'artcom_v7.2_token_at_start_full'
             })
         };
     }
