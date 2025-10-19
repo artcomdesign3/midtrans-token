@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom Design Payment System v6.5 - ULTRA DIVERSE GENERATION
+// netlify/functions/midtrans-token.js - ArtCom Design Payment System v7.0 - FULL VERSION WITH FIXES
 exports.handler = async function(event, context) {
     // CORS headers
     const headers = {
@@ -11,7 +11,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM PAYMENT SYSTEM v6.5 - ULTRA DIVERSE GENERATION - Method:', event.httpMethod);
+    console.log('🚀 ARTCOM PAYMENT SYSTEM v7.0 - FULL VERSION - Method:', event.httpMethod);
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     // Handle preflight
@@ -23,7 +23,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.5_ultra_diverse'
+                function_version: 'artcom_v7.0_full'
             })
         };
     }
@@ -105,7 +105,8 @@ exports.handler = async function(event, context) {
         // Parse name parts
         const nameParts = cleanName.split(' ').filter(part => part.length > 0);
         const firstName = nameParts[0] || 'customer';
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'artcom';
+        // FIXED: Join lastName without spaces to prevent email issues
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join('') : 'artcom';
         
         // Capitalize function
         function capitalize(str) {
@@ -302,8 +303,8 @@ exports.handler = async function(event, context) {
             'kaplan', 'aslan', 'kartal', 'ejder', 'yildiz', 'ay', 'gunes', 'deniz',
             'dag', 'orman', 'ruzgar', 'firtina', 'simsek', 'gok', 'toprak', 'ates',
             'buz', 'kar', 'yagmur', 'bulut', 'goktem', 'altin', 'gumus', 'elmas',
-            'sehir', 'koy', 'ada', 'koy', 'vadi', 'tepe', 'yayla', 'ovা',
-            'kahraman', 'savascar', 'avcı', 'sovalye', 'prens', 'kral', 'sultan', 'han',
+            'sehir', 'koy', 'ada', 'koy', 'vadi', 'tepe', 'yayla', 'ova',
+            'kahraman', 'savascar', 'avci', 'sovalye', 'prens', 'kral', 'sultan', 'han',
             
             // German Words
             'drache', 'adler', 'wolf', 'tiger', 'lowe', 'falke', 'sturm', 'feuer',
@@ -343,7 +344,7 @@ exports.handler = async function(event, context) {
             
             // Arabic (Romanized)
             'noor', 'qamar', 'shams', 'jabal', 'bahr', 'nahr', 'sama', 'nar',
-            'dhahab', 'fidda', 'hadid', 'fulad', 'mas', 'yaqut', 'zumurrud', 'la\'li',
+            'dhahab', 'fidda', 'hadid', 'fulad', 'mas', 'yaqut', 'zumurrud', 'lali',
             'malik', 'amir', 'faris', 'batal', 'muhrib', 'sayad', 'sahir', 'hakim',
             
             // Russian (Romanized)
@@ -419,9 +420,17 @@ exports.handler = async function(event, context) {
                 break;
         }
         
+        // CRITICAL FIX: Remove ALL spaces and invalid characters from email
+        emailPrefix = emailPrefix.replace(/[^a-z0-9._-]/gi, '');
+        
         // Ensure email prefix is not too long
         if (emailPrefix.length > 15) {
             emailPrefix = emailPrefix.slice(0, 15);
+        }
+        
+        // Ensure email prefix is not too short
+        if (emailPrefix.length < 3) {
+            emailPrefix = 'user' + Math.floor(emailRandom5 * 99999);
         }
         
         const email = `${emailPrefix}@${selectedDomain}`;
@@ -473,7 +482,8 @@ exports.handler = async function(event, context) {
             wix_expiry,
             wix_signature,
             custom_name,
-            credit_card
+            credit_card,
+            callback_base_url  // NEW: WordPress callback base URL
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
@@ -483,8 +493,9 @@ exports.handler = async function(event, context) {
         console.log('🎯 Order ID:', order_id);
         console.log('🎨 Payment source:', payment_source);
         console.log('👤 Custom name:', custom_name);
-        console.log('� Credit card:', credit_card);
-        console.log('�📏 Order ID length:', order_id ? order_id.length : 0);
+        console.log('💳 Credit card:', credit_card);
+        console.log('📏 Order ID length:', order_id ? order_id.length : 0);
+        console.log('🔗 Callback base URL:', callback_base_url);
         
         if (payment_source === 'wix') {
             console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
@@ -530,7 +541,7 @@ exports.handler = async function(event, context) {
                             actual_length: order_id ? order_id.length : 0,
                             expected_length: 34,
                             starts_with_artcom: order_id ? order_id.startsWith('ARTCOM_') : false,
-                            function_version: 'artcom_v6.4_deterministic'
+                            function_version: 'artcom_v7.0_full'
                         }
                     })
                 };
@@ -596,9 +607,16 @@ exports.handler = async function(event, context) {
             output_name: `${customerData.first_name} ${customerData.last_name}`,
             email: customerData.email,
             phone: customerData.phone,
-            method: 'ultra_sensitive_multilingual_algorithm_v2',
-            note: 'ONE_CHARACTER_CHANGE_RESULTS_IN_COMPLETELY_DIFFERENT_OUTPUT'
+            method: 'ultra_sensitive_multilingual_algorithm_v7_full',
+            note: 'EMAIL_FIX_NO_SPACES_APPLIED'
         });
+
+        // FIXED: Callback URL - WordPress base URL instead of direct NextPay
+        const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
+        const callbackUrl = `${wordpressCallback}?order_id=${order_id}`;
+        
+        console.log('✅ Callback URL (WordPress):', callbackUrl);
+        console.log('📍 WordPress will handle token generation and redirect to NextPay');
 
         // Prepare Midtrans API call
         const midtransParams = {
@@ -631,9 +649,7 @@ exports.handler = async function(event, context) {
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             callbacks: {
-                finish: (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
-                    ? 'https://nextpays.de/webhook/payment_complete.php?order_id=' + order_id
-                    : 'https://www.artcom.design/webhook/payment_complete.php?order_id=' + order_id
+                finish: callbackUrl  // FIXED: WordPress callback instead of NextPay direct
             }
         };
 
@@ -662,13 +678,14 @@ exports.handler = async function(event, context) {
                 timestamp_unix: Math.floor(Date.now() / 1000),
                 payment_source: payment_source,
                 customer_data: customerData,
+                callback_url: callbackUrl,
                 request_details: {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v6.4_deterministic'
+                    function_version: 'artcom_v7.0_full'
                 },
                 system_info: {
                     method: payment_source,
@@ -676,10 +693,11 @@ exports.handler = async function(event, context) {
                     token_length: order_id ? order_id.length : 0,
                     webhook_target: webhookUrl.includes('nextpays.de') ? 'nextpay' : 'artcom',
                     processing_flow: payment_source === 'wix' 
-                        ? 'wix->artcom->wordpress->netlify->midtrans'
-                        : 'nextpay_legacy->34char_token->artcom->wordpress->netlify->midtrans->nextpay_webhook',
+                        ? 'wix->wordpress->netlify->midtrans->wordpress_callback->artcom'
+                        : 'nextpay->wordpress->netlify->midtrans->wordpress_callback(token_1h)->nextpay',
                     customer_generation: 'advanced_deterministic_algorithm_with_credit_card',
-                    email_generation: 'ultra_diverse_8_styles',
+                    email_generation: 'ultra_diverse_8_styles_no_spaces_fix',
+                    callback_method: 'wordpress_secure_token_1hour_expiry',
                     random_customer_enabled: false
                 }
             };
@@ -696,7 +714,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v6.4-deterministic'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.0-full'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -726,7 +744,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-Payment-Function-v6.4-deterministic'
+                'User-Agent': 'ArtCom-Payment-Function-v7.0-full'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -754,16 +772,15 @@ exports.handler = async function(event, context) {
                         expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v6.4_deterministic',
+                        function_version: 'artcom_v7.0_full',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
                             order_id_length: order_id ? order_id.length : 0,
                             amount_idr: finalAmount,
                             system: payment_source,
-                            callback_url: (payment_source === 'legacy' && order_id.startsWith('ARTCOM_') && order_id.length === 34)
-                                ? 'https://nextpays.de/webhook/payment_complete.php'
-                                : 'https://www.artcom.design/webhook/payment_complete.php',
+                            callback_url: callbackUrl,
+                            callback_method: 'wordpress_secure_token_1hour',
                             webhook_notification_sent: true,
                             company: payment_source === 'legacy' ? 'NextPay (via ArtCom)' : 'ArtCom Design',
                             token_validation: '34_character_support',
@@ -773,7 +790,7 @@ exports.handler = async function(event, context) {
                             input_credit_card: credit_card ? 'PROVIDED' : 'NOT_PROVIDED',
                             custom_name_provided: !!custom_name,
                             credit_card_provided: !!credit_card,
-                            email_generation: 'ultra_diverse_8_styles',
+                            email_generation: 'ultra_diverse_8_styles_no_spaces_fixed',
                             random_customer_enabled: false
                         },
                         ...(payment_source === 'wix' && {
@@ -801,14 +818,14 @@ exports.handler = async function(event, context) {
                     debug_info: {
                         order_id: order_id,
                         amount: finalAmount,
-                        function_version: 'artcom_v6.4_deterministic',
+                        function_version: 'artcom_v7.0_full',
                         payment_source: payment_source,
                         order_id_length: order_id ? order_id.length : 0,
                         token_validation: '34_character_support',
                         customer_generation_method: 'advanced_deterministic_algorithm_with_credit_card',
                         custom_name_provided: !!custom_name,
                         credit_card_provided: !!credit_card,
-                        email_generation: 'ultra_diverse_8_styles',
+                        email_generation: 'ultra_diverse_8_styles_no_spaces_fixed',
                         random_customer_enabled: false
                     }
                 })
@@ -825,7 +842,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v6.4_deterministic'
+                function_version: 'artcom_v7.0_full'
             })
         };
     }
