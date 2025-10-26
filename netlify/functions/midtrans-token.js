@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION
+// netlify/functions/midtrans-token.js - ArtCom v7.3 - ERROR CALLBACK ADDED
 exports.handler = async function(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION');
+    console.log('🚀 ARTCOM v7.3 - ERROR CALLBACK ADDED');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -21,7 +21,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full'
+                function_version: 'artcom_v7.3_error_callback_added'
             })
         };
     }
@@ -228,7 +228,6 @@ exports.handler = async function(event, context) {
         let emailPrefix = '';
         
         const randomWords = [
-            // English - Nature & Elements
             'phoenix', 'dragon', 'thunder', 'ocean', 'mountain', 'eagle', 'storm', 'fire',
             'galaxy', 'cosmic', 'ninja', 'warrior', 'mystic', 'shadow', 'crystal', 'golden',
             'silver', 'diamond', 'emerald', 'sapphire', 'ruby', 'platinum', 'bronze', 'steel',
@@ -237,94 +236,62 @@ exports.handler = async function(event, context) {
             'tiger', 'lion', 'wolf', 'bear', 'shark', 'falcon', 'hawk', 'raven',
             'cyber', 'tech', 'digital', 'quantum', 'matrix', 'virtual', 'pixel', 'binary',
             'star', 'comet', 'asteroid', 'meteor', 'planet', 'universe', 'cosmos', 'nebula',
-            
-            // English - Modern & Tech
             'crypto', 'blockchain', 'neon', 'laser', 'turbo', 'ultra', 'mega', 'hyper',
             'alpha', 'beta', 'gamma', 'delta', 'omega', 'sigma', 'chrome', 'fusion',
             'reactor', 'engine', 'power', 'energy', 'voltage', 'circuit', 'network', 'system',
             'core', 'pulse', 'wave', 'beam', 'flux', 'zone', 'vertex', 'apex',
-            
-            // English - Fantasy & Adventure
             'legend', 'myth', 'epic', 'saga', 'quest', 'blade', 'sword', 'shield',
             'crown', 'throne', 'castle', 'fortress', 'tower', 'gate', 'bridge', 'realm',
             'kingdom', 'empire', 'dynasty', 'clan', 'tribe', 'guild', 'order', 'covenant',
             'oracle', 'prophet', 'sage', 'master', 'guardian', 'sentinel', 'warden', 'keeper',
-            
-            // Turkish Words
             'kaplan', 'aslan', 'kartal', 'ejder', 'yildiz', 'ay', 'gunes', 'deniz',
             'dag', 'orman', 'ruzgar', 'firtina', 'simsek', 'gok', 'toprak', 'ates',
             'buz', 'kar', 'yagmur', 'bulut', 'goktem', 'altin', 'gumus', 'elmas',
-            'sehir', 'koy', 'ada', 'koy', 'vadi', 'tepe', 'yayla', 'ova',
+            'sehir', 'koy', 'ada', 'vadi', 'tepe', 'yayla', 'ova',
             'kahraman', 'savascar', 'avci', 'sovalye', 'prens', 'kral', 'sultan', 'han',
-            
-            // German Words
-            'drache', 'adler', 'wolf', 'tiger', 'lowe', 'falke', 'sturm', 'feuer',
+            'drache', 'adler', 'wolf', 'lowe', 'falke', 'sturm', 'feuer',
             'stern', 'mond', 'sonne', 'berg', 'wald', 'meer', 'fluss', 'himmel',
             'gold', 'silber', 'eisen', 'stahl', 'kristall', 'diamant', 'rubin', 'saphir',
             'kaiser', 'konig', 'prinz', 'ritter', 'held', 'krieger', 'jager', 'magier',
-            
-            // French Words
-            'dragon', 'aigle', 'lion', 'tigre', 'loup', 'faucon', 'tempete', 'feu',
-            'etoile', 'lune', 'soleil', 'montagne', 'foret', 'ocean', 'riviere', 'ciel',
-            'or', 'argent', 'fer', 'acier', 'cristal', 'diamant', 'rubis', 'saphir',
+            'aigle', 'loup', 'faucon', 'tempete', 'feu',
+            'etoile', 'lune', 'soleil', 'montagne', 'foret', 'riviere', 'ciel',
+            'or', 'argent', 'fer', 'acier', 'cristal', 'rubis', 'saphir',
             'roi', 'prince', 'chevalier', 'heros', 'guerrier', 'chasseur', 'magicien', 'sage',
-            
-            // Spanish Words
-            'dragon', 'aguila', 'leon', 'tigre', 'lobo', 'halcon', 'tormenta', 'fuego',
+            'aguila', 'lobo', 'halcon', 'tormenta', 'fuego',
             'estrella', 'luna', 'sol', 'montana', 'bosque', 'oceano', 'rio', 'cielo',
             'oro', 'plata', 'hierro', 'acero', 'cristal', 'diamante', 'rubi', 'zafiro',
             'rey', 'principe', 'caballero', 'heroe', 'guerrero', 'cazador', 'mago', 'sabio',
-            
-            // Italian Words
             'drago', 'aquila', 'leone', 'tigre', 'lupo', 'falco', 'tempesta', 'fuoco',
             'stella', 'luna', 'sole', 'montagna', 'foresta', 'oceano', 'fiume', 'cielo',
             'oro', 'argento', 'ferro', 'acciaio', 'cristallo', 'diamante', 'rubino', 'zaffiro',
             're', 'principe', 'cavaliere', 'eroe', 'guerriero', 'cacciatore', 'mago', 'saggio',
-            
-            // Japanese (Romanized)
             'ryu', 'tora', 'ookami', 'taka', 'arashi', 'hi', 'mizu', 'kaze',
             'hoshi', 'tsuki', 'taiyou', 'yama', 'mori', 'umi', 'kawa', 'sora',
-            'kin', 'gin', 'tetsu', 'hagane', 'suishou', 'daiya', 'ruby', 'safaia',
+            'kin', 'gin', 'tetsu', 'hagane', 'suishou', 'daiya', 'safaia',
             'ou', 'ouji', 'kishi', 'eiyuu', 'senshi', 'ryoushi', 'mahou', 'kenja',
-            
-            // Korean (Romanized)
             'yong', 'horangi', 'neukdae', 'maeeul', 'pokpung', 'bul', 'mul', 'baram',
             'byeol', 'dal', 'haetbit', 'san', 'sup', 'bada', 'gang', 'haneul',
-            'geum', 'eun', 'cheol', 'gang', 'suejeong', 'daiya', 'ruby', 'safaia',
+            'geum', 'eun', 'cheol', 'suejeong',
             'wang', 'wangja', 'gisa', 'yeongung', 'jeonsa', 'sanyang', 'mabup', 'hyeonin',
-            
-            // Arabic (Romanized)
             'noor', 'qamar', 'shams', 'jabal', 'bahr', 'nahr', 'sama', 'nar',
             'dhahab', 'fidda', 'hadid', 'fulad', 'mas', 'yaqut', 'zumurrud', 'lali',
             'malik', 'amir', 'faris', 'batal', 'muhrib', 'sayad', 'sahir', 'hakim',
-            
-            // Russian (Romanized)
             'drakon', 'orel', 'lev', 'tigr', 'volk', 'sokol', 'burya', 'ogon',
-            'zvezda', 'luna', 'solntse', 'gora', 'les', 'more', 'reka', 'nebo',
-            'zoloto', 'serebro', 'zhelezo', 'stal', 'kristall', 'almaz', 'rubin', 'safir',
+            'zvezda', 'solntse', 'gora', 'les', 'more', 'reka', 'nebo',
+            'zoloto', 'serebro', 'zhelezo', 'stal', 'kristall', 'almaz', 'safir',
             'korol', 'prints', 'rytsar', 'geroj', 'voin', 'okhotnik', 'mag', 'mudrets',
-            
-            // Hindi (Romanized)
             'sher', 'baagh', 'garud', 'toofan', 'aag', 'paani', 'hava', 'dharti',
             'sitara', 'chand', 'suraj', 'parvat', 'jungle', 'samudra', 'nadi', 'aasman',
             'sona', 'chandi', 'loha', 'ispat', 'sphatik', 'heera', 'manik', 'neelam',
             'raja', 'rajkumar', 'yoddha', 'veer', 'shikari', 'jaadugar', 'gyani', 'pandit',
-            
-            // Modern Tech Terms (Mixed Languages)
             'pixel', 'codec', 'wifi', 'cloud', 'sync', 'upload', 'stream', 'cache',
             'hash', 'token', 'stack', 'queue', 'array', 'loop', 'function', 'method',
             'class', 'object', 'string', 'integer', 'boolean', 'vector', 'matrix', 'algorithm',
-            
-            // Colors in Different Languages
             'rouge', 'bleu', 'vert', 'noir', 'blanc', 'rojo', 'azul', 'verde',
-            'rosso', 'blu', 'verde', 'nero', 'bianco', 'rot', 'blau', 'grun',
+            'rosso', 'blu', 'nero', 'bianco', 'rot', 'blau', 'grun',
             'akai', 'aoi', 'midori', 'kuro', 'shiro', 'kirmizi', 'mavi', 'yesil',
-            
-            // Numbers in Different Languages
             'uno', 'dos', 'tres', 'quatre', 'cinq', 'six', 'eins', 'zwei',
             'drei', 'ichi', 'ni', 'san', 'bir', 'iki', 'uch', 'ek', 'do', 'teen',
-            
-            // Mythological Creatures
             'griffin', 'sphinx', 'chimera', 'hydra', 'kraken', 'basilisk', 'banshee', 'valkyrie',
             'centaur', 'minotaur', 'cyclops', 'medusa', 'pegasus', 'unicorn', 'werewolf', 'vampire'
         ];
@@ -577,7 +544,9 @@ exports.handler = async function(event, context) {
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             callbacks: {
-                finish: callbackUrl
+                finish: callbackUrl,
+                error: callbackUrl,
+                unfinish: callbackUrl
             }
         };
 
@@ -613,7 +582,7 @@ exports.handler = async function(event, context) {
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.2_token_at_start_full'
+                    function_version: 'artcom_v7.3_error_callback_added'
                 }
             };
 
@@ -629,7 +598,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.3'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -657,7 +626,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v7.2-full'
+                'User-Agent': 'ArtCom-v7.3'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -669,7 +638,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Token included in callback URL');
+            console.log('✅ SUCCESS - Error callback configured');
             
             return {
                 statusCode: 200,
@@ -685,7 +654,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '15 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.2_token_at_start_full',
+                        function_version: 'artcom_v7.3_error_callback_added',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -696,7 +665,8 @@ exports.handler = async function(event, context) {
                             is_nextpay: isNextPay,
                             token_in_callback: isNextPay,
                             customer_data: customerData,
-                            email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email)
+                            email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email),
+                            error_callback_enabled: true
                         },
                         ...(payment_source === 'wix' && {
                             wix_info: {
@@ -733,7 +703,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full'
+                function_version: 'artcom_v7.3_error_callback_added'
             })
         };
     }
