@@ -522,10 +522,7 @@ exports.handler = async function(event, context) {
                 gross_amount: finalAmount
             },
             credit_card: {
-                secure: true,
-                // ⚠️ Attempt to disable retry
-                save_card: false,
-                authentication: true
+                secure: true
             },
             item_details: [
                 {
@@ -543,7 +540,7 @@ exports.handler = async function(event, context) {
             expiry: {
                 start_time: midtransDate,
                 unit: "minute", 
-                duration: 5  // ⚠️ 5 minutes - shorter expiry
+                duration: 5
             },
             custom_field1: order_id,
             custom_field2: payment_source,
@@ -551,8 +548,7 @@ exports.handler = async function(event, context) {
             callbacks: {
                 finish: callbackUrl,
                 error: callbackUrl,
-                unfinish: callbackUrl,
-                close: callbackUrl  // ⚠️ Added close callback
+                unfinish: callbackUrl
             }
         };
 
@@ -660,7 +656,7 @@ exports.handler = async function(event, context) {
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
                         expiry_duration: '5 minutes',
-                        retry_note: 'Retry UI cannot be fully disabled in Snap API',
+                        retry_note: 'Midtrans Snap does not support disabling retry UI',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
                         function_version: 'artcom_v7.5_retry_disabled_callback_fixed',
