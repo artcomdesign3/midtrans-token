@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom v7.5 - RETRY DISABLED + CALLBACK FIXED
+// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION
 exports.handler = async function(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v7.5 - RETRY DISABLED + CALLBACK FIXED');
+    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -21,7 +21,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.5_retry_disabled_callback_fixed'
+                function_version: 'artcom_v7.2_token_at_start_full'
             })
         };
     }
@@ -504,13 +504,11 @@ exports.handler = async function(event, context) {
             console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
             
             const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
-            // ⚠️ FIXED: Added /midtrans-pay
-            callbackUrl = `${wordpressCallback}/midtrans-pay?order_id=${order_id}&callback_token=${callbackToken}`;
+            callbackUrl = `${wordpressCallback}?order_id=${order_id}&callback_token=${callbackToken}`;
             
             console.log('✅ NextPay: Token included in callback URL');
         } else {
-            // ⚠️ FIXED: Added /midtrans-pay for ArtCom too
-            callbackUrl = `https://www.artcom.design/midtrans-pay?order_id=${order_id}`;
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
             console.log('✅ ArtCom: Direct callback (no token)');
         }
         
@@ -546,9 +544,7 @@ exports.handler = async function(event, context) {
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             callbacks: {
-                finish: callbackUrl,
-                error: callbackUrl,
-                unfinish: callbackUrl
+                finish: callbackUrl
             }
         };
 
@@ -578,14 +574,13 @@ exports.handler = async function(event, context) {
                 callback_url: callbackUrl,
                 is_nextpay: isNextPay,
                 token_created_at_start: isNextPay,
-                retry_disabled: true,
                 request_details: {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.5_retry_disabled_callback_fixed'
+                    function_version: 'artcom_v7.2_token_at_start_full'
                 }
             };
 
@@ -601,7 +596,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.5'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -622,7 +617,6 @@ exports.handler = async function(event, context) {
         console.log('🔗 Order ID:', order_id);
         console.log('🔗 Amount IDR:', finalAmount);
         console.log('👤 Customer:', `${customerData.first_name} ${customerData.last_name} (${customerData.email})`);
-        console.log('🚫 Retry mechanism: DISABLED');
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -630,7 +624,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v7.5'
+                'User-Agent': 'ArtCom-v7.2-full'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -642,7 +636,7 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Retry disabled, Callback URL fixed');
+            console.log('✅ SUCCESS - Token included in callback URL');
             
             return {
                 statusCode: 200,
@@ -656,10 +650,9 @@ exports.handler = async function(event, context) {
                         amount: finalAmount,
                         auto_redirect: auto_redirect || false,
                         expiry_duration: '5 minutes',
-                        retry_note: 'Midtrans Snap does not support disabling retry UI',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.5_retry_disabled_callback_fixed',
+                        function_version: 'artcom_v7.2_token_at_start_full',
                         payment_source: payment_source,
                         debug_info: {
                             order_id: order_id,
@@ -670,8 +663,7 @@ exports.handler = async function(event, context) {
                             is_nextpay: isNextPay,
                             token_in_callback: isNextPay,
                             customer_data: customerData,
-                            email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email),
-                            error_callback_enabled: true
+                            email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email)
                         },
                         ...(payment_source === 'wix' && {
                             wix_info: {
@@ -708,7 +700,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.5_retry_disabled_callback_fixed'
+                function_version: 'artcom_v7.2_token_at_start_full'
             })
         };
     }
