@@ -499,18 +499,18 @@ exports.handler = async function(event, context) {
         let callbackUrl;
         
         if (isNextPay) {
-            const callbackToken = createCallbackToken(orderId);
+            const callbackToken = createCallbackToken(order_id);
             console.log('✅ Token created at payment start (1 hour expiry)');
             console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
             
             const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
             // ⚠️ FIXED: Added /midtrans-pay
-            callbackUrl = `${wordpressCallback}/midtrans-pay?order_id=${orderId}&callback_token=${callbackToken}`;
+            callbackUrl = `${wordpressCallback}/midtrans-pay?order_id=${order_id}&callback_token=${callbackToken}`;
             
             console.log('✅ NextPay: Token included in callback URL');
         } else {
             // ⚠️ FIXED: Added /midtrans-pay for ArtCom too
-            callbackUrl = `https://www.artcom.design/midtrans-pay?order_id=${orderId}`;
+            callbackUrl = `https://www.artcom.design/midtrans-pay?order_id=${order_id}`;
             console.log('✅ ArtCom: Direct callback (no token)');
         }
         
