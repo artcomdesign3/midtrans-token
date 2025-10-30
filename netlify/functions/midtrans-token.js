@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION
+// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION - WITH TEST MODE
 exports.handler = async function(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION');
+    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION WITH TEST MODE');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -21,7 +21,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full'
+                function_version: 'artcom_v7.2_token_at_start_full_test_mode'
             })
         };
     }
@@ -383,7 +383,8 @@ exports.handler = async function(event, context) {
             wix_signature,
             custom_name,
             credit_card,
-            callback_base_url
+            callback_base_url,
+            test_mode = false
         } = requestData;
 
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
@@ -395,6 +396,7 @@ exports.handler = async function(event, context) {
         console.log('👤 Custom name:', custom_name);
         console.log('💳 Credit card:', credit_card);
         console.log('📏 Order ID length:', order_id ? order_id.length : 0);
+        console.log('🧪 Test mode:', test_mode);
         
         // Check if NextPay
         const isNextPay = isNextPayOrder(order_id);
@@ -418,8 +420,8 @@ exports.handler = async function(event, context) {
             };
         }
 
-        if (payment_source === 'legacy') {
-            console.log('🔍 Validating legacy token...');
+        if (payment_source === 'legacy' || payment_source === 'nextpay_test') {
+            console.log('🔍 Validating legacy/test token...');
             console.log('Token length:', order_id ? order_id.length : 0);
             console.log('Starts with ARTCOM_:', order_id ? order_id.startsWith('ARTCOM_') : false);
             
@@ -438,7 +440,7 @@ exports.handler = async function(event, context) {
                     })
                 };
             }
-            console.log('✅ Legacy token validation passed');
+            console.log('✅ Legacy/test token validation passed');
         } else if (payment_source === 'wix' || payment_source === 'wix_simple') {
             if (!order_id || !order_id.startsWith('ARTCOM_')) {
                 console.error('❌ Invalid Wix order ID:', order_id);
@@ -503,8 +505,25 @@ exports.handler = async function(event, context) {
             console.log('✅ Token created at payment start (1 hour expiry)');
             console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
             
-            const wordpressCallback = callback_base_url || 'https://artcomdesign3-umbac.wpcomstaging.com';
-            callbackUrl = `${wordpressCallback}?order_id=${order_id}&callback_token=${callbackToken}`;
+            // DYNAMICALLY DETERMINE CALLBACK BASE URL
+            let callbackBase;
+            const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
+            
+            if (callback_base_url) {
+                // If explicitly provided, use it
+                callbackBase = callback_base_url;
+                console.log('✅ Using provided callback_base_url:', callbackBase);
+            } else if (isTestMode) {
+                // Test mode: use nextpays1.de WordPress staging
+                callbackBase = 'https://nextpays1staging.wpcomstaging.com';
+                console.log('✅ Test mode: Using nextpays1 staging');
+            } else {
+                // Production: use existing WordPress staging
+                callbackBase = 'https://artcomdesign3-umbac.wpcomstaging.com';
+                console.log('✅ Production mode: Using artcom staging');
+            }
+            
+            callbackUrl = `${callbackBase}?order_id=${order_id}&callback_token=${callbackToken}`;
             
             console.log('✅ NextPay: Token included in callback URL');
         } else {
@@ -555,9 +574,24 @@ exports.handler = async function(event, context) {
 
         console.log('📤 Sending webhook notification...');
         try {
-            const webhookUrl = isNextPay
-                ? 'https://nextpays.de/webhook/midtrans.php'
-                : 'https://www.artcom.design/webhook/midtrans.php';
+            // DYNAMICALLY DETERMINE WEBHOOK URL BASED ON ORDER SOURCE
+            let webhookUrl;
+            
+            if (isNextPay) {
+                // Check if this is a test order
+                const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
+                
+                if (isTestMode) {
+                    webhookUrl = 'https://nextpays1.de/webhook/midtrans.php';
+                    console.log('📡 Using TEST NextPay webhook');
+                } else {
+                    webhookUrl = 'https://nextpays.de/webhook/midtrans.php';
+                    console.log('📡 Using PRODUCTION NextPay webhook');
+                }
+            } else {
+                webhookUrl = 'https://www.artcom.design/webhook/midtrans.php';
+                console.log('📡 Using ArtCom webhook');
+            }
 
             console.log('📡 Webhook URL:', webhookUrl);
 
@@ -574,13 +608,14 @@ exports.handler = async function(event, context) {
                 callback_url: callbackUrl,
                 is_nextpay: isNextPay,
                 token_created_at_start: isNextPay,
+                test_mode: test_mode,
                 request_details: {
                     referrer: referrer,
                     user_agent: user_agent,
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.2_token_at_start_full'
+                    function_version: 'artcom_v7.2_token_at_start_full_test_mode'
                 }
             };
 
@@ -596,7 +631,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full-test-mode'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -624,7 +659,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v7.2-full'
+                'User-Agent': 'ArtCom-v7.2-full-test-mode'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -652,8 +687,9 @@ exports.handler = async function(event, context) {
                         expiry_duration: '5 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.2_token_at_start_full',
+                        function_version: 'artcom_v7.2_token_at_start_full_test_mode',
                         payment_source: payment_source,
+                        test_mode: test_mode,
                         debug_info: {
                             order_id: order_id,
                             order_id_length: order_id ? order_id.length : 0,
@@ -700,7 +736,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full'
+                function_version: 'artcom_v7.2_token_at_start_full_test_mode'
             })
         };
     }
