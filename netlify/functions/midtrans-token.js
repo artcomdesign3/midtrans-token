@@ -544,9 +544,11 @@ exports.handler = async function(event, context) {
                 console.log('✅ Production mode: Using artcom staging');
             }
             
-            callbackUrl = `${callbackBase}?order_id=${order_id}&callback_token=${callbackToken}`;
+            // CRITICAL FIX: Put token FIRST so Midtrans can append its params with &
+            // Midtrans will add: &order_id=X&status_code=Y&transaction_status=Z
+            callbackUrl = `${callbackBase}?callback_token=${callbackToken}`;
             
-            console.log('✅ NextPay: Token with SOURCE included in callback URL');
+            console.log('✅ NextPay: Token included in callback URL');
         } else {
             callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
             console.log('✅ ArtCom: Direct callback (no token)');
