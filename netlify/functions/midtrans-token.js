@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom v7.3 - SOURCE IN TOKEN - nextpay/nextpay1 routing
+// netlify/functions/midtrans-token.js - ArtCom v7.4 - ALL CALLBACKS - success/failed/unfinish routing
 exports.handler = async function(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v7.3 - SOURCE IN TOKEN - nextpay/nextpay1 routing');
+    console.log('🚀 ARTCOM v7.4 - ALL CALLBACKS - success/failed/unfinish routing');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -21,7 +21,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.3_source_in_token'
+                function_version: 'artcom_v7.4_all_callbacks'
             })
         };
     }
@@ -584,7 +584,9 @@ exports.handler = async function(event, context) {
             custom_field2: payment_source,
             custom_field3: Math.floor(Date.now() / 1000).toString(),
             callbacks: {
-                finish: callbackUrl
+                finish: callbackUrl,      // Successful/completed payments
+                unfinish: callbackUrl,    // Incomplete payments (user closed)
+                error: callbackUrl        // Failed/error payments
             }
         };
 
@@ -634,7 +636,7 @@ exports.handler = async function(event, context) {
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.3_source_in_token'
+                    function_version: 'artcom_v7.4_all_callbacks'
                 }
             };
 
@@ -650,7 +652,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.3-source-in-token'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.4-all-callbacks'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -678,7 +680,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v7.3-source-in-token'
+                'User-Agent': 'ArtCom-v7.4-all-callbacks'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -707,7 +709,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '5 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.3_source_in_token',
+                        function_version: 'artcom_v7.4_all_callbacks',
                         payment_source: payment_source,
                         test_mode: test_mode,
                         nextpay_source: source,
@@ -758,7 +760,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.3_source_in_token'
+                function_version: 'artcom_v7.4_all_callbacks'
             })
         };
     }
