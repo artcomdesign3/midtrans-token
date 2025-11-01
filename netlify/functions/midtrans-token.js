@@ -1,4 +1,4 @@
-// netlify/functions/midtrans-token.js - ArtCom v7.2 - TOKEN AT START - FULL VERSION - WITH TEST MODE
+// netlify/functions/midtrans-token.js - ArtCom v7.3 - SOURCE IN TOKEN - nextpay/nextpay1 routing
 exports.handler = async function(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v7.2 - TOKEN AT PAYMENT START - FULL VERSION WITH TEST MODE');
+    console.log('🚀 ARTCOM v7.3 - SOURCE IN TOKEN - nextpay/nextpay1 routing');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -21,7 +21,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ 
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full_test_mode'
+                function_version: 'artcom_v7.3_source_in_token'
             })
         };
     }
@@ -56,12 +56,16 @@ exports.handler = async function(event, context) {
         return Math.abs(hash).toString(16);
     }
 
-    // *** NEW: Create callback token AT PAYMENT START ***
-    function createCallbackToken(orderId) {
+    // *** UPDATED: Create callback token with SOURCE ***
+    function createCallbackToken(orderId, source) {
         const timestamp = Math.floor(Date.now() / 1000);
         const secret = 'ARTCOM_CALLBACK_SECRET_2024';
-        const hash = createSimpleHash(orderId + timestamp, secret);
-        const data = `${timestamp}|${orderId}|${hash}`;
+        
+        // Include source in hash calculation
+        const hash = createSimpleHash(orderId + timestamp + source, secret);
+        
+        // NEW FORMAT: timestamp|orderId|source|hash
+        const data = `${timestamp}|${orderId}|${source}|${hash}`;
         return Buffer.from(data).toString('base64');
     }
 
@@ -402,6 +406,22 @@ exports.handler = async function(event, context) {
         const isNextPay = isNextPayOrder(order_id);
         console.log('🔍 Is NextPay order (34 char):', isNextPay);
         
+        // *** DETERMINE SOURCE (nextpay or nextpay1) ***
+        let source = 'nextpay'; // default
+        
+        if (isNextPay) {
+            // Check if this is test mode
+            const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
+            
+            if (isTestMode) {
+                source = 'nextpay1';
+                console.log('🎯 Source: nextpay1 (TEST MODE)');
+            } else {
+                source = 'nextpay';
+                console.log('🎯 Source: nextpay (PRODUCTION)');
+            }
+        }
+        
         if (payment_source === 'wix') {
             console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
         }
@@ -497,23 +517,24 @@ exports.handler = async function(event, context) {
             phone: customerData.phone
         });
 
-        // *** CREATE TOKEN AT PAYMENT START (if NextPay) ***
+        // *** CREATE TOKEN WITH SOURCE AT PAYMENT START (if NextPay) ***
         let callbackUrl;
         
         if (isNextPay) {
-            const callbackToken = createCallbackToken(order_id);
-            console.log('✅ Token created at payment start (1 hour expiry)');
+            // Pass source to token creation
+            const callbackToken = createCallbackToken(order_id, source);
+            console.log('✅ Token created with SOURCE at payment start (1 hour expiry)');
             console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
+            console.log('🎯 Token source:', source);
             
             // DYNAMICALLY DETERMINE CALLBACK BASE URL
             let callbackBase;
-            const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
             
             if (callback_base_url) {
                 // If explicitly provided, use it
                 callbackBase = callback_base_url;
                 console.log('✅ Using provided callback_base_url:', callbackBase);
-            } else if (isTestMode) {
+            } else if (source === 'nextpay1') {
                 // Test mode: use nextpays1.de WordPress staging
                 callbackBase = 'https://nextpays1staging.wpcomstaging.com';
                 console.log('✅ Test mode: Using nextpays1 staging');
@@ -525,7 +546,7 @@ exports.handler = async function(event, context) {
             
             callbackUrl = `${callbackBase}?order_id=${order_id}&callback_token=${callbackToken}`;
             
-            console.log('✅ NextPay: Token included in callback URL');
+            console.log('✅ NextPay: Token with SOURCE included in callback URL');
         } else {
             callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
             console.log('✅ ArtCom: Direct callback (no token)');
@@ -574,16 +595,13 @@ exports.handler = async function(event, context) {
 
         console.log('📤 Sending webhook notification...');
         try {
-            // DYNAMICALLY DETERMINE WEBHOOK URL BASED ON ORDER SOURCE
+            // DYNAMICALLY DETERMINE WEBHOOK URL BASED ON SOURCE
             let webhookUrl;
             
             if (isNextPay) {
-                // Check if this is a test order
-                const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
-                
-                if (isTestMode) {
+                if (source === 'nextpay1') {
                     webhookUrl = 'https://nextpays1.de/webhook/midtrans.php';
-                    console.log('📡 Using TEST NextPay webhook');
+                    console.log('📡 Using TEST NextPay1 webhook');
                 } else {
                     webhookUrl = 'https://nextpays.de/webhook/midtrans.php';
                     console.log('📡 Using PRODUCTION NextPay webhook');
@@ -607,6 +625,7 @@ exports.handler = async function(event, context) {
                 customer_data: customerData,
                 callback_url: callbackUrl,
                 is_nextpay: isNextPay,
+                nextpay_source: source, // "nextpay" or "nextpay1"
                 token_created_at_start: isNextPay,
                 test_mode: test_mode,
                 request_details: {
@@ -615,7 +634,7 @@ exports.handler = async function(event, context) {
                     origin: origin,
                     custom_name: custom_name,
                     generated_name: nameForGeneration,
-                    function_version: 'artcom_v7.2_token_at_start_full_test_mode'
+                    function_version: 'artcom_v7.3_source_in_token'
                 }
             };
 
@@ -631,7 +650,7 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v7.2-full-test-mode'
+                    'User-Agent': 'ArtCom-Payment-Function-v7.3-source-in-token'
                 },
                 body: JSON.stringify(webhookData)
             });
@@ -659,7 +678,7 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v7.2-full-test-mode'
+                'User-Agent': 'ArtCom-v7.3-source-in-token'
             },
             body: JSON.stringify(midtransParams)
         });
@@ -671,7 +690,8 @@ exports.handler = async function(event, context) {
         console.log('📡 Has redirect_url:', !!responseData.redirect_url);
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Token included in callback URL');
+            console.log('✅ SUCCESS - Token with SOURCE included in callback URL');
+            console.log('🎯 Source in token:', source);
             
             return {
                 statusCode: 200,
@@ -687,9 +707,10 @@ exports.handler = async function(event, context) {
                         expiry_duration: '5 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v7.2_token_at_start_full_test_mode',
+                        function_version: 'artcom_v7.3_source_in_token',
                         payment_source: payment_source,
                         test_mode: test_mode,
+                        nextpay_source: source,
                         debug_info: {
                             order_id: order_id,
                             order_id_length: order_id ? order_id.length : 0,
@@ -698,6 +719,7 @@ exports.handler = async function(event, context) {
                             callback_url: callbackUrl,
                             is_nextpay: isNextPay,
                             token_in_callback: isNextPay,
+                            source_in_token: source,
                             customer_data: customerData,
                             email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email)
                         },
@@ -736,7 +758,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v7.2_token_at_start_full_test_mode'
+                function_version: 'artcom_v7.3_source_in_token'
             })
         };
     }
