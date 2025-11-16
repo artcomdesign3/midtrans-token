@@ -378,6 +378,9 @@ exports.handler = async function(event, context) {
             callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
         }
 
+        // Trim invoice_number FIRST (before using in callback URL)
+        const invoiceNumber = String(order_id).substring(0, 30);
+
         // Add gateway parameter to callback URL
         callbackUrl += `?gateway=doku&order_id=${invoiceNumber}`;
         
@@ -402,12 +405,10 @@ exports.handler = async function(event, context) {
 
         // CRITICAL FIX: Trim invoice_number to 30 chars (DOKU Credit Card requirement)
         // DOKU Documentation: Max 64 chars normally, but 30 chars if Credit Card is enabled
-        // IMPORTANT: We keep the original order_id for callback, only trim for DOKU API
-        const invoiceNumber = String(order_id).substring(0, 30);
+        // invoiceNumber already defined above before callback URL creation
         
         console.log('📋 Original Order ID:', order_id);
         console.log('📋 DOKU Invoice Number (30 chars):', invoiceNumber);
-        console.log('⚠️ Note: Callback will use ORIGINAL order_id, not trimmed version');
 
         // Prepare Doku request body (DOKU Checkout API format)
         // Reference: https://developers.doku.com/accept-payment/direct-api/checkout
