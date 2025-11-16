@@ -379,11 +379,9 @@ exports.handler = async function(event, context) {
         }
 
         // Add gateway parameter to callback URL
-        callbackUrl += `?gateway=doku&order_id=${order_id}`;
-
-        console.log('🔗 Callback URL:', callbackUrl);
-
-        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
+        callbackUrl += `?gateway=doku&order_id=${invoiceNumber}`;
+        
+        console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
         // Uses custom_name and credit_card from WordPress URL parameters
         let nameForGeneration;
         if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
@@ -404,15 +402,23 @@ exports.handler = async function(event, context) {
 
         // CRITICAL FIX: Trim invoice_number to 30 chars (DOKU Credit Card requirement)
         // DOKU Documentation: Max 64 chars normally, but 30 chars if Credit Card is enabled
+        // IMPORTANT: We keep the original order_id for callback, only trim for DOKU API
         const invoiceNumber = String(order_id).substring(0, 30);
+        
+        console.log('📋 Original Order ID:', order_id);
+        console.log('📋 DOKU Invoice Number (30 chars):', invoiceNumber);
+        console.log('⚠️ Note: Callback will use ORIGINAL order_id, not trimmed version');
 
         // Prepare Doku request body (DOKU Checkout API format)
         // Reference: https://developers.doku.com/accept-payment/direct-api/checkout
         // MANDATORY FIELDS: order (amount, invoice_number) + payment (payment_due_date)
         const dokuRequestBody = {
             order: {
-                invoice_number: invoiceNumber,
-                amount: parseInt(amount, 10)
+                invoice_number: invoiceNumber,  // Trimmed for DOKU (30 chars max)
+                amount: parseInt(amount, 10),
+                callback_url: callbackUrl,  // Success/completed payments redirect
+                failed_url: callbackUrl,    // Failed/error payments redirect (same as callback)
+                auto_redirect: true  // Auto redirect after payment
             },
             payment: {
                 payment_due_date: 5  // MANDATORY: minutes until payment expires (5 minutes like Midtrans)
@@ -427,6 +433,7 @@ exports.handler = async function(event, context) {
         console.log('📧 Email:', dokuRequestBody.customer.email);
         console.log('💰 Order amount:', dokuRequestBody.order.amount);
         console.log('📋 Invoice number (trimmed to 30):', dokuRequestBody.order.invoice_number);
+        console.log('🔗 Callback URL:', dokuRequestBody.order.callback_url);
         console.log('⏱️  Payment due date:', dokuRequestBody.payment.payment_due_date, 'minutes');
 
         // STEP 1: Get Token B2B (required for signature)
@@ -537,28 +544,26 @@ exports.handler = async function(event, context) {
                 callback_url: callbackUrl
             });
 
-            return {
-                statusCode: 200,
-                headers: headers,
-                body: JSON.stringify({
-                    success: true,
-                    gateway: 'doku',
-                    data: {
-                        token: responseData.response.payment.token_id,
-                        redirect_url: responseData.response.payment.url,
-                        order_id: order_id,
-                        amount: parseInt(amount),
-                        expiry_date: responseData.response.payment.expired_date,
-                        doku_response: responseData,
-                        timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v8.0_multi_gateway',
-                        payment_source: payment_source,
-                        test_mode: test_mode
-                    }
-                })
-            };
-
-        } catch (error) {
+        return {
+            statusCode: 200,
+            headers: headers,
+            body: JSON.stringify({
+                success: true,
+                gateway: 'doku',
+                data: {
+                    token: responseData.response.payment.token_id,
+                    redirect_url: responseData.response.payment.url,
+                    order_id: invoiceNumber,  // Return trimmed invoice_number (30 chars)
+                    amount: parseInt(amount),
+                    expiry_date: responseData.response.payment.expired_date,
+                    doku_response: responseData,
+                    timestamp: Math.floor(Date.now() / 1000),
+                    function_version: 'artcom_v8.0_multi_gateway',
+                    payment_source: payment_source,
+                    test_mode: test_mode
+                }
+            })
+        };        } catch (error) {
             console.error('🚨 Doku payment error:', error);
             return {
                 statusCode: 500,
