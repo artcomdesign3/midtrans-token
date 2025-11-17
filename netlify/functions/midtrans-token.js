@@ -368,21 +368,34 @@ exports.handler = async function(event, context) {
         console.log('   Request ID:', requestId);
         console.log('   Timestamp:', timestamp);
 
-        // Determine callback URL
+        // Determine callback URL for DOKU
+        // DOKU follows same flow as Midtrans: WordPress -> validates token -> redirects to NextPays
         let callbackUrl;
         if (callback_base_url) {
             callbackUrl = callback_base_url;
         } else if (test_mode) {
+            // Test mode: redirect to NextPay1 WordPress staging
             callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
         } else {
+            // Production: redirect to ArtCom WordPress staging
             callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
         }
 
         // Trim invoice_number FIRST (before using in callback URL)
         const invoiceNumber = String(order_id).substring(0, 30);
 
-        // Add gateway parameter to callback URL
-        callbackUrl += `?gateway=doku&order_id=${invoiceNumber}`;
+        // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
+        // Determine source based on test_mode
+        const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
+        const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
+        
+        console.log('✅ DOKU Callback token created (1 hour expiry)');
+        console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
+        console.log('🎯 Token source:', dokuSource);
+
+        // Add callback_token, gateway and order_id parameters to callback URL
+        // WordPress will validate token (1 hour expiry) and redirect to NextPays
+        callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
         
         console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
         // Uses custom_name and credit_card from WordPress URL parameters
