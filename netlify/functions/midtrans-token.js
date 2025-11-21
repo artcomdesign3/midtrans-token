@@ -356,47 +356,36 @@ exports.handler = async function(event, context) {
         console.log('   Request ID:', requestId);
         console.log('   Timestamp:', timestamp);
 
-        // Check if this is a NextPay order (34 char ARTCOM_) - check BEFORE trimming!
-        const isNextPayOrder = order_id && order_id.startsWith('ARTCOM_') && order_id.length === 34;
-        
-        // Trim invoice_number AFTER checking (for DOKU 30 char limit)
-        const invoiceNumber = String(order_id).substring(0, 30);
-        
         // Determine callback URL for DOKU
-        // DOKU follows same flow as Midtrans: NextPay uses token, Wix goes direct
+        // DOKU follows same flow as Midtrans: WordPress -> validates token -> redirects to NextPays
         let callbackUrl;
-        
-        if (isNextPayOrder) {
-            // NextPay orders: Use callback_token flow
-            if (callback_base_url) {
-                callbackUrl = callback_base_url;
-            } else if (test_mode) {
-                // Test mode: redirect to NextPay1 WordPress staging
-                callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
-            } else {
-                // Production: redirect to ArtCom WordPress staging
-                callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
-            }
-
-            // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
-            // Determine source based on test_mode
-            const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
-            const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
-            
-            console.log('✅ DOKU Callback token created (1 hour expiry)');
-            console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
-            console.log('🎯 Token source:', dokuSource);
-
-            // Add callback_token, gateway and order_id parameters to callback URL
-            // WordPress will validate token (1 hour expiry) and redirect to NextPays
-            callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
-            console.log('✅ NextPay DOKU: Token included in callback URL');
+        if (callback_base_url) {
+            callbackUrl = callback_base_url;
+        } else if (test_mode) {
+            // Test mode: redirect to NextPay1 WordPress staging
+            callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
         } else {
-            // Wix/ArtCom orders: Direct callback (same as Midtrans)
-            // IMPORTANT: Use original order_id (not trimmed invoiceNumber) so WordPress can find the order
-            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}&gateway=doku`;
-            console.log('✅ ArtCom/Wix DOKU: Direct callback (no token)');
+            // Production: redirect to ArtCom WordPress staging
+            callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
         }
+
+        // *** REVERTED TO ORIGINAL ID FOR SYNC ***
+        // Clean ID (INV...) caused sync mismatch. 
+        // We are using ORIGINAL ID (substring 30 chars) but relying on AUTO_REDIRECT: FALSE to fix bank issue.
+        const invoiceNumber = String(order_id).substring(0, 30);
+
+        // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
+        // Determine source based on test_mode
+        const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
+        const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
+        
+        console.log('✅ DOKU Callback token created (1 hour expiry)');
+        console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
+        console.log('🎯 Token source:', dokuSource);
+
+        // Add callback_token, gateway and order_id parameters to callback URL
+        // WordPress will validate token (1 hour expiry) and redirect to NextPays
+        callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
         
         console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
         // Uses custom_name and credit_card from WordPress URL parameters
@@ -429,11 +418,15 @@ exports.handler = async function(event, context) {
         // MANDATORY FIELDS: order (amount, invoice_number) + payment (payment_due_date)
         const dokuRequestBody = {
             order: {
-                invoice_number: invoiceNumber,  // Trimmed to 30 chars
+                invoice_number: invoiceNumber,  // Using original ID (trimmed)
                 amount: parseInt(amount, 10),
                 callback_url: callbackUrl,  // Success/completed payments redirect
-                failed_url: callbackUrl,    // Failed/error payments redirect
-                auto_redirect: true  // Auto redirect after payment
+                line_items: [{
+                    name: item_name || 'ArtCom Design Payment',
+                    price: parseInt(amount, 10),
+                    quantity: 1
+                }]
+                // auto_redirect removed - let DOKU Dashboard settings control redirect behavior
             },
             payment: {
                 payment_due_date: 5  // MANDATORY: minutes until payment expires (5 minutes like Midtrans)
@@ -449,9 +442,9 @@ exports.handler = async function(event, context) {
         console.log('💰 Order amount:', dokuRequestBody.order.amount);
         console.log('📋 Invoice number (trimmed to 30):', dokuRequestBody.order.invoice_number);
         console.log('🔗 Callback URL:', dokuRequestBody.order.callback_url);
-        console.log('❌ Failed URL:', dokuRequestBody.order.failed_url);
+        console.log('📦 Line items:', dokuRequestBody.order.line_items.length, 'item(s)');
         console.log('⏱️  Payment due date:', dokuRequestBody.payment.payment_due_date, 'minutes');
-        console.log('🔄 Auto-redirect:', dokuRequestBody.order.auto_redirect);
+        console.log('🔄 Auto-redirect: Controlled by DOKU Dashboard (not in API request)');
 
         // STEP 1: Get Token B2B (required for signature)
         console.log('📍 Step 1: Obtaining Token B2B...');
