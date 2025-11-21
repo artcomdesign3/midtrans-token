@@ -356,11 +356,11 @@ exports.handler = async function(event, context) {
         console.log('   Request ID:', requestId);
         console.log('   Timestamp:', timestamp);
 
-        // Trim invoice_number FIRST (before using in callback URL)
-        const invoiceNumber = String(order_id).substring(0, 30);
-        
-        // Check if this is a NextPay order (34 char ARTCOM_)
+        // Check if this is a NextPay order (34 char ARTCOM_) - check BEFORE trimming!
         const isNextPayOrder = order_id && order_id.startsWith('ARTCOM_') && order_id.length === 34;
+        
+        // Trim invoice_number AFTER checking (for DOKU 30 char limit)
+        const invoiceNumber = String(order_id).substring(0, 30);
         
         // Determine callback URL for DOKU
         // DOKU follows same flow as Midtrans: NextPay uses token, Wix goes direct
@@ -393,7 +393,8 @@ exports.handler = async function(event, context) {
             console.log('✅ NextPay DOKU: Token included in callback URL');
         } else {
             // Wix/ArtCom orders: Direct callback (same as Midtrans)
-            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${invoiceNumber}&gateway=doku`;
+            // IMPORTANT: Use original order_id (not trimmed invoiceNumber) so WordPress can find the order
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}&gateway=doku`;
             console.log('✅ ArtCom/Wix DOKU: Direct callback (no token)');
         }
         
