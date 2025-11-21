@@ -429,15 +429,11 @@ exports.handler = async function(event, context) {
         // MANDATORY FIELDS: order (amount, invoice_number) + payment (payment_due_date)
         const dokuRequestBody = {
             order: {
-                invoice_number: invoiceNumber,  // Using original ID (trimmed)
+                invoice_number: invoiceNumber,  // Trimmed to 30 chars
                 amount: parseInt(amount, 10),
                 callback_url: callbackUrl,  // Success/completed payments redirect
-                line_items: [{
-                    name: item_name || 'ArtCom Design Payment',
-                    price: parseInt(amount, 10),
-                    quantity: 1
-                }]
-                // auto_redirect removed - let DOKU Dashboard settings control redirect behavior
+                failed_url: callbackUrl,    // Failed/error payments redirect
+                auto_redirect: true  // Auto redirect after payment
             },
             payment: {
                 payment_due_date: 5  // MANDATORY: minutes until payment expires (5 minutes like Midtrans)
@@ -453,9 +449,9 @@ exports.handler = async function(event, context) {
         console.log('💰 Order amount:', dokuRequestBody.order.amount);
         console.log('📋 Invoice number (trimmed to 30):', dokuRequestBody.order.invoice_number);
         console.log('🔗 Callback URL:', dokuRequestBody.order.callback_url);
-        console.log('📦 Line items:', dokuRequestBody.order.line_items.length, 'item(s)');
+        console.log('❌ Failed URL:', dokuRequestBody.order.failed_url);
         console.log('⏱️  Payment due date:', dokuRequestBody.payment.payment_due_date, 'minutes');
-        console.log('🔄 Auto-redirect: Controlled by DOKU Dashboard (not in API request)');
+        console.log('🔄 Auto-redirect:', dokuRequestBody.order.auto_redirect);
 
         // STEP 1: Get Token B2B (required for signature)
         console.log('📍 Step 1: Obtaining Token B2B...');
