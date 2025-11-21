@@ -1,15 +1,3 @@
-doku: public key.
-
------BEGIN PUBLIC KEY-----
-MIIBITANBgkqhkiG9w0BAQEFAAOCAQ4AMIIBCQKCAQBoaLriBtWoRl7OAhvS4ta1gYZTniHgZRcCagQHSiSuKF3wMZFxZ7J4fGQ2XDF14TNWPe1ZYkP9VgLyTuRPweyUrmqh+wlzE2UORzCqp6g28V6eJZXYuz2RNbJ2QSvqLUjQKXNLpAVBv/qeLtoy/Dt6UqgIhGBhybmkabMd3VBrGQQY84BHoPVXDefl/5EeHanVNeDawwtk0eFNLV/3RyBcxXRIoSVz3Y/uj1V9qk28Av5IWjvQ7ggk8HJf22PlyJ4OQACmuloVPnPKmc6qEYb0tAwSyDb6AFZZbIvmGTdhsryEXBK5mEJ20SiYKT7r4BJioBBa/M5P+eg3IF5EVWDnAgMBAAE=
------END PUBLIC KEY-----
-
-
-
-
-netlify:
-
-
 
 // netlify/functions/midtrans-token.js - ArtCom v8.0 - MULTI-GATEWAY (Midtrans + Doku)
 // =============================================================================
