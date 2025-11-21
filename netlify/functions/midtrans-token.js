@@ -384,21 +384,26 @@ exports.handler = async function(event, context) {
         console.log('   Request ID:', requestId);
         console.log('   Timestamp:', timestamp);
 
-        // Check if this is a NextPay order (34 char ARTCOM_) - check BEFORE trimming!
-        const isNextPayOrder = order_id && order_id.startsWith('ARTCOM_') && order_id.length === 34;
-        
-        // Trim invoice_number AFTER checking (for DOKU 30 char limit)
+        // Trim invoice_number for DOKU 30 char limit
         const invoiceNumber = String(order_id).substring(0, 30);
         
-        // Determine callback URL for DOKU
-        // DOKU follows same flow as Midtrans: NextPay uses token, Wix goes direct
+        // Determine callback URL and source based on payment_source (NOT order_id length!)
         let callbackUrl;
+        let dokuSource;
         
-        if (isNextPayOrder) {
+        if (payment_source === 'wix' || payment_source === 'wix_simple') {
+            // WIX orders: Direct callback to ArtCom webhook (NO TOKEN)
+            // CRITICAL: Use invoiceNumber (30 chars) NOT original order_id
+            // Because DOKU receives invoiceNumber and returns it in webhook
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${invoiceNumber}&gateway=doku`;
+            dokuSource = 'wix';
+            console.log('✅ WIX DOKU: Direct callback (no token)');
+            console.log('   Using invoiceNumber (30 char) for consistency with DOKU');
+        } else {
             // NextPay orders: Use callback_token flow
             if (callback_base_url) {
                 callbackUrl = callback_base_url;
-            } else if (test_mode) {
+            } else if (test_mode || payment_source === 'nextpay_test') {
                 // Test mode: redirect to NextPay1 WordPress staging
                 callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
             } else {
@@ -408,7 +413,7 @@ exports.handler = async function(event, context) {
 
             // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
             // Determine source based on test_mode
-            const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
+            dokuSource = (test_mode || payment_source === 'nextpay_test') ? 'nextpay1' : 'nextpay';
             const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
             
             console.log('✅ DOKU Callback token created (1 hour expiry)');
@@ -419,13 +424,6 @@ exports.handler = async function(event, context) {
             // WordPress will validate token (1 hour expiry) and redirect to NextPays
             callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
             console.log('✅ NextPay DOKU: Token included in callback URL');
-        } else {
-            // Wix/ArtCom orders: Direct callback (same as Midtrans)
-            // CRITICAL: Use invoiceNumber (30 chars) NOT original order_id
-            // Because DOKU receives invoiceNumber and returns it in webhook
-            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${invoiceNumber}&gateway=doku`;
-            console.log('✅ ArtCom/Wix DOKU: Direct callback (no token)');
-            console.log('   Using invoiceNumber (30 char) for consistency with DOKU');
         }
         
         console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
@@ -1041,24 +1039,18 @@ exports.handler = async function(event, context) {
         console.log('📏 Order ID length:', order_id ? order_id.length : 0);
         console.log('🧪 Test mode:', test_mode);
         
-        // Check if NextPay
-        const isNextPay = isNextPayOrder(order_id);
-        console.log('🔍 Is NextPay order (34 char):', isNextPay);
+        // *** DETERMINE SOURCE based on payment_source (NOT order_id length!) ***
+        let source;
         
-        // *** DETERMINE SOURCE (nextpay or nextpay1) ***
-        let source = 'nextpay'; // default
-        
-        if (isNextPay) {
-            // Check if this is test mode
-            const isTestMode = payment_source === 'nextpay_test' || test_mode === true;
-            
-            if (isTestMode) {
-                source = 'nextpay1';
-                console.log('🎯 Source: nextpay1 (TEST MODE)');
-            } else {
-                source = 'nextpay';
-                console.log('🎯 Source: nextpay (PRODUCTION)');
-            }
+        if (payment_source === 'wix' || payment_source === 'wix_simple') {
+            source = 'wix';
+            console.log('🎯 Source: wix (WIX/ArtCom)');
+        } else if (payment_source === 'nextpay_test' || test_mode === true) {
+            source = 'nextpay1';
+            console.log('🎯 Source: nextpay1 (TEST MODE)');
+        } else {
+            source = 'nextpay';
+            console.log('🎯 Source: nextpay (PRODUCTION)');
         }
         
         if (payment_source === 'wix') {
@@ -1156,11 +1148,15 @@ exports.handler = async function(event, context) {
             phone: customerData.phone
         });
 
-        // *** CREATE TOKEN WITH SOURCE AT PAYMENT START (if NextPay) ***
+        // *** CREATE CALLBACK URL WITH SOURCE ***
         let callbackUrl;
         
-        if (isNextPay) {
-            // Pass source to token creation
+        if (payment_source === 'wix' || payment_source === 'wix_simple') {
+            // WIX orders: Direct callback to ArtCom webhook (NO TOKEN)
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
+            console.log('✅ WIX: Direct callback (no token)');
+        } else {
+            // NextPay orders: Token callback flow
             const callbackToken = createCallbackToken(order_id, source);
             console.log('✅ Token created with SOURCE at payment start (1 hour expiry)');
             console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
@@ -1188,9 +1184,6 @@ exports.handler = async function(event, context) {
             callbackUrl = `${callbackBase}?callback_token=${callbackToken}`;
             
             console.log('✅ NextPay: Token included in callback URL');
-        } else {
-            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
-            console.log('✅ ArtCom: Direct callback (no token)');
         }
         
         console.log('🔗 Callback URL:', callbackUrl);
@@ -1247,9 +1240,9 @@ exports.handler = async function(event, context) {
             payment_source: payment_source,
             customer_data: customerData,
             callback_url: callbackUrl,
-            is_nextpay: isNextPay,
+            is_nextpay: (source === 'nextpay' || source === 'nextpay1'),
             nextpay_source: source,
-            token_created_at_start: isNextPay,
+            token_created_at_start: (source === 'nextpay' || source === 'nextpay1'),
             test_mode: test_mode,
             request_details: {
                 referrer: referrer,
@@ -1322,8 +1315,8 @@ exports.handler = async function(event, context) {
                             amount_idr: finalAmount,
                             system: payment_source,
                             callback_url: callbackUrl,
-                            is_nextpay: isNextPay,
-                            token_in_callback: isNextPay,
+                            is_nextpay: (source === 'nextpay' || source === 'nextpay1'),
+                            token_in_callback: (source === 'nextpay' || source === 'nextpay1'),
                             source_in_token: source,
                             customer_data: customerData,
                             email_valid: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(customerData.email)
