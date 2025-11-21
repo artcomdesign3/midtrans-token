@@ -1,45 +1,36 @@
-
-// netlify/functions/midtrans-token.js - ArtCom v8.0 - MULTI-GATEWAY (Midtrans + Doku)
+// netlify/functions/midtrans-token.js - ArtCom v8.3 - HARDCODED KEY FIX
 // =============================================================================
 // PAYMENT GATEWAY CONFIGURATION
 // =============================================================================
 
-// Get Private Key from Environment Variable (Netlify)
-// Check if env var exists and is not empty, otherwise use hardcoded fallback
-console.log('🔍 ENV VAR CHECK - process.env.DOKU_PRIVATE_KEY exists:', !!process.env.DOKU_PRIVATE_KEY);
-console.log('🔍 ENV VAR CHECK - type:', typeof process.env.DOKU_PRIVATE_KEY);
-console.log('🔍 ENV VAR CHECK - length:', process.env.DOKU_PRIVATE_KEY ? process.env.DOKU_PRIVATE_KEY.length : 0);
-console.log('🔍 ENV VAR CHECK - first 50 chars:', process.env.DOKU_PRIVATE_KEY ? process.env.DOKU_PRIVATE_KEY.substring(0, 50) : 'NULL');
-
-// Handle Netlify environment variable format: convert literal \n strings to actual newlines
-const DOKU_PRIVATE_KEY = (process.env.DOKU_PRIVATE_KEY && process.env.DOKU_PRIVATE_KEY.trim().length > 0) 
-    ? process.env.DOKU_PRIVATE_KEY.replace(/\\n/g, '\n')  // Convert literal \n to actual newlines
-    : `-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQBoaLriBtWoRl7OAhvS4ta1gYZTniHgZRcCagQHSiSuKF3wMZFx
-Z7J4fGQ2XDF14TNWPe1ZYkP9VgLyTuRPweyUrmqh+wlzE2UORzCqp6g28V6eJZXY
-uz2RNbJ2QSvqLUjQKXNLpAVBv/qeLtoy/Dt6UqgIhGBhybmkabMd3VBrGQQY84BH
-oPVXDefl/5EeHanVNeDawwtk0eFNLV/3RyBcxXRIoSVz3Y/uj1V9qk28Av5IWjvQ
-7ggk8HJf22PlyJ4OQACmuloVPnPKmc6qEYb0tAwSyDb6AFZZbIvmGTdhsryEXBK5
-mEJ20SiYKT7r4BJioBBa/M5P+eg3IF5EVWDnAgMBAAECggEATrsiqUw0Etc1qCzI
-5GYvN+E69JTawMYZ6rUc4o5TSIyiAXyvSw/B8b8DJkaw+U3fE1pRP0StNjyErkk1
-Ortl9dvsBscxIfhvDKw8E4Ongf7StXhsHWlcDMKsFyYfwk9xh56qFVDSsfjdOCjm
-Wun+w8fOc9W2hCbEeSlHau63NHpKP6nQn1qkUymku6CwaanUCv/WOfa/8BJ97Jud
-YXvb0OM6fcdMTvIFOEXkHGbYdoXr0OaN6v+iGfKfl1qFHgVHUnIGEUkIZOdAENTD
-m3pQ2KjbwT8mCHIXthmt7HILpXxyH9h1VRoEZJ6k1ylFwSHOEWlGgNKM/e7FLwJC
-n1bJoQKBgQCx04TOmoRejxryHYTeV7zAompFJdZtIW6+GiS1rwh+4sr/E2rCMpnn
-rZHO9aHSeqlUHMgOElh8XkHbXxrihv+7S8LY8G4vkiAsgRc+k8V0E2r3JonAg/Ns
-wnzKcR2Xqgg3DRtbr3BaiKegPb1zvJbUgpgQBIk17boCSfezYFI0UQKBgQCWTuF4
-We/mr8H6CjK+x+ErOzK/+WwP1bByXNCDDVWRLk+fmj9/zT3lYO5LM3tzjjuSO8Mr
-MWUm8Mxjgw3Sjn9XPjSmhYqAQUzybhKchK//fZ1pw3SlZ/mm1NkjixTvEJ1e8HC+
-rXRaS5uJNCotNm07jvbxgZzV8qi6qEqC/AqLtwKBgGyR9PrjUkAdZVk/dpj9vmtq
-fjGbqXBVwjRk59bZd/loZIIaC8tnc5oE2goe5F8KrwmAzQ/yWX4NWm4igdqei9KB
-rgQfv1ZiBCzH4DY/qIV3OY6OQ/p7VYsor2I2b9fiY0OhR/vRgGp2Fsn6CAp6sSgs
-V8Unz9JSQ4gUOxyUiXwRAoGBAIRYdizLO/HqJaks25uiUUAIgtoIGz8iD5fS44HQ
-9tu7ZD6KyYiVRf+3RnqOnQ+VWBydZG6esosEEWM5nK0d7T/7NM6+3MGrPb5kbxzD
-tFgI2darVATkNSzRU1P5fXg2L+rNWOh7v+xVkGDRvqVKvAlqC0OAtYCohiq8Tcdh
-d0OnAoGBAKlb9ZJ7IhmcH16+YwP6r+2fJYY3Tamd36jo6NT3eQW2HmC1c8dz2hpA
-GK3ABuKDWoLAaxT8zsFhitjFseHoJruWc0xG9TcbthBFcPQLy53y9KiEu695pABn
-uxYgJIVMhZnzlvvfZNavnP/8wSNWoSz2Pndgd7eLI5ji9mOIrZ10
+// DOKU PRIVATE KEY - HARDCODED FOR STABILITY
+// Generated via Online RSA Tool (2048 bit)
+const DOKU_PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQBx9x1Fr4sYaHwl5mpImdzprwL3UUn+9ecD6ZKAPF2gPblXV3uP
+UHxPrChIM/I1JhxYPRg+OFFt+gsg7Xsi4M9u3xno0eoAW/+COl/1iDVWsMkhmneD
+Swlv7dRjnekwFkZzSEq6ZMdImXApmhvK/BhuzRMdyUC/MV2PudR/YziknjHQN+FD
+xE7OD7WGN6O+l61AOuDmXcejEwVrjQcmk4QosGzC/7p5PFrzZ3O6q83i7xUfEHsj
+LPiRvmXxmIHTCBZ39475B+b4rlE8gLNHH8HmEJSuKbiu3waYXFK78wKAfW6SNVIO
+OOk4j0DD7tj0hMthpJIYs8hakEqWdwKdTtqBAgMBAAECggEAcdIqTCTsuO3xwDCG
+SghRmJqQTc3EJ34UwdWP2b9wis/awh6/av0pirEYcjRfXTG48W/jPJEm0r3+S16j
+ssvwoHz19Y9hNAauA7SljiYBj5l057jMUDarMDzJ+MwHz10P86dp6wsn9Zw5Z3Ng
++rQY+uCajQ8pOUrmdNtWHfxM4Cs/QqBh37SNYmWqlDvroWg8Wbpp+FDzj2DacjYf
+9w2lzM2UwgeMjQlTi9k0/NTDjqItgERHe8PsPfgFxnk/eLeoWNT+xDS4OAmP6Ahu
+9y8CzywIeQvIBiGJwmpe50v1X2bvA1tJMibxAQAGI+Jpb0IPvGesU3gy3LNlh5o3
+hnmyoQKBgQDA5GC/okj9Y6VmWhBeXUsqs5PZxjWeGX83LXBKXLZLLAUgDi/Pn6sP
+WHEw9wVA7ypZhhVjP3BDyWlYnE2vfR1NLu3DdWOdY9Iy8OS9lcWP9qKUQ4tD/gKk
+r5pKbW0u8Bu/FB0Ucz2E+5iF1Lml7kxRilvBHdcU/gJyUA0vuQwsDQKBgQCXQD6G
+P5+L7jV5Rbz3dwOZcAUXjrClYOpeJSQq/fxOFvpYdvfNC29kKac2m7gCJ+mzTeFB
+3SMvmcfgXmS2rxg4xkKQGWjGF/xWrBKEq4haulAlNVMhfkyf+K8A5Hr/bRIRkzi1
+c+6/CBrFVqHGe8ijBgJfr24Dk1kjKWbIylUnRQKBgQCgUbBv1iwgHl/sT9Lm+1ds
+KFEsYWdS/hIUBDoeNCx3EiE4YVIvmJ+OY43Aiq7dJ2rleWHxWVqvnIloUpDm2HAw
+JF8NY1XmDH86Q6l6QS8w1maOIA1x936u7hyo24YxyvLkv4zj4FwzWQGNyh564TKh
+WwOj4G9RTUUvSYWMMpsBSQKBgD+lfyoK995wXPwtRnl0EYWtx9bD6r2M7NK1GmUk
+/9j0fmBfn6MfHr6tcHngSSxPE16qdRG8NqQ/OAbIceUWBUFO3I+6wYYqbbsjKZ++
+duCG6lbd+59qgGAIy8u6Wa/GfAX9R63DnUGx7WIBNI5LZICFdNZDAi5rAOV09JWl
+3vNpAoGAYYqCUm4UEN3JrnSRPgQ0YXL1Z2weGSw3Ey2KkWV1j9lI4Gjr+PEDEkZ4
+n5ojrz+OvvbPABB1JTV3pblQPTXbR5ESkCcFOC2tmebpUl5vnDAzcGyyTcfU5nPO
+lwir//2RufTbuqhwn/60hD6eLwjt9UVjfiTMqqq0q35xRYy5hAU=
 -----END RSA PRIVATE KEY-----`;
 
 console.log('🔍 FINAL DOKU_PRIVATE_KEY - length:', DOKU_PRIVATE_KEY ? DOKU_PRIVATE_KEY.length : 0);
@@ -81,7 +72,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v8.0 - MULTI-GATEWAY (Midtrans + Doku)');
+    console.log('🚀 ARTCOM v8.3 - MULTI-GATEWAY (Midtrans + Doku)');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -92,7 +83,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v8.0_multi_gateway',
+                function_version: 'artcom_v8.3_multi_gateway',
                 supported_gateways: ['midtrans', 'doku']
             })
         };
@@ -265,13 +256,13 @@ exports.handler = async function(event, context) {
             ? 'https://api.doku.com/authorization/v1/access-token/b2b'
             : 'https://api-sandbox.doku.com/authorization/v1/access-token/b2b';
 
-        console.log('  Sending Token B2B Request...');
+        console.log(' Sending Token B2B Request...');
         console.log('   URL:', tokenUrl);
         console.log('   Headers:');
-        console.log('      Content-Type: application/json');
-        console.log('      X-CLIENT-KEY:', clientId);
-        console.log('      X-TIMESTAMP:', timestamp);
-        console.log('      X-SIGNATURE:', signature.substring(0, 50) + '...');
+        console.log('     Content-Type: application/json');
+        console.log('     X-CLIENT-KEY:', clientId);
+        console.log('     X-TIMESTAMP:', timestamp);
+        console.log('     X-SIGNATURE:', signature.substring(0, 50) + '...');
         console.log('   Body:', JSON.stringify({ grantType: 'client_credentials' }));
 
         try {
@@ -919,24 +910,6 @@ exports.handler = async function(event, context) {
             email: email,
             phone: phone
         };
-    }
-
-    function generateFallbackName(order_id, amount) {
-        const seed = simpleHash((order_id || 'default') + (amount || '1000').toString());
-        const fallbackNames = [
-            'Customer ArtCom', 'User Payment', 'Client Design', 'Buyer Digital',
-            'Guest Service', 'Member Premium', 'Order Client', 'Payment User'
-        ];
-        return fallbackNames[seed % fallbackNames.length];
-        
-        function simpleHash(str) {
-            let hash = 5381;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) + hash) + str.charCodeAt(i);
-                hash = hash & hash;
-            }
-            return Math.abs(hash);
-        }
     }
 
     try {
