@@ -1,10 +1,9 @@
-// netlify/functions/midtrans-token.js - ArtCom v8.3 - HARDCODED KEY FIX
+// netlify/functions/midtrans-token.js - ArtCom v8.7 - FINAL SYNC FIX (Original ID + No Auto Redirect)
 // =============================================================================
 // PAYMENT GATEWAY CONFIGURATION
 // =============================================================================
 
 // DOKU PRIVATE KEY - HARDCODED FOR STABILITY
-// Generated via Online RSA Tool (2048 bit)
 const DOKU_PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQBx9x1Fr4sYaHwl5mpImdzprwL3UUn+9ecD6ZKAPF2gPblXV3uP
 UHxPrChIM/I1JhxYPRg+OFFt+gsg7Xsi4M9u3xno0eoAW/+COl/1iDVWsMkhmneD
@@ -32,9 +31,6 @@ duCG6lbd+59qgGAIy8u6Wa/GfAX9R63DnUGx7WIBNI5LZICFdNZDAi5rAOV09JWl
 n5ojrz+OvvbPABB1JTV3pblQPTXbR5ESkCcFOC2tmebpUl5vnDAzcGyyTcfU5nPO
 lwir//2RufTbuqhwn/60hD6eLwjt9UVjfiTMqqq0q35xRYy5hAU=
 -----END RSA PRIVATE KEY-----`;
-
-console.log('🔍 FINAL DOKU_PRIVATE_KEY - length:', DOKU_PRIVATE_KEY ? DOKU_PRIVATE_KEY.length : 0);
-console.log('🔍 FINAL DOKU_PRIVATE_KEY - first 50 chars:', DOKU_PRIVATE_KEY ? DOKU_PRIVATE_KEY.substring(0, 50) : 'NULL');
 
 const DOKU_CONFIG = {
     // NOTE: These credentials are PRODUCTION credentials only
@@ -72,7 +68,7 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v8.3 - MULTI-GATEWAY (Midtrans + Doku)');
+    console.log('🚀 ARTCOM v8.7 - MULTI-GATEWAY (Sync Fix + Original ID)');
     console.log('🌍 Origin:', event.headers.origin || 'No origin');
 
     if (event.httpMethod === 'OPTIONS') {
@@ -83,7 +79,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v8.3_multi_gateway',
+                function_version: 'artcom_v8.7_multi_gateway',
                 supported_gateways: ['midtrans', 'doku']
             })
         };
@@ -310,6 +306,27 @@ exports.handler = async function(event, context) {
     }
 
     /**
+     * Generate fallback customer name from order_id and amount
+     */
+    function generateFallbackName(order_id, amount) {
+        const seed = simpleHash((order_id || 'default') + (amount || '1000').toString());
+        const fallbackNames = [
+            'Customer ArtCom', 'User Payment', 'Client Design', 'Buyer Digital',
+            'Guest Service', 'Member Premium', 'Order Client', 'Payment User'
+        ];
+        return fallbackNames[seed % fallbackNames.length];
+        
+        function simpleHash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+    }
+
+    /**
      * Handle DOKU Payment Creation
      */
     async function handleDokuPayment(requestData, headers) {
@@ -325,7 +342,10 @@ exports.handler = async function(event, context) {
             payment_source = 'legacy',
             custom_name,
             credit_card,
-            auto_redirect
+            auto_redirect,
+            wix_ref,
+            wix_expiry,
+            wix_signature
         } = requestData;
 
         console.log('🔍 Extracted Parameters:');
@@ -338,6 +358,10 @@ exports.handler = async function(event, context) {
         console.log('   Custom Name:', custom_name);
         console.log('   Credit Card:', credit_card ? 'PROVIDED' : 'NOT PROVIDED');
         console.log('   Auto Redirect:', auto_redirect);
+        
+        if (payment_source === 'wix') {
+            console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
+        }
 
         // ALWAYS USE PRODUCTION for Doku (credentials are production)
         const dokuEnv = DOKU_CONFIG.PRODUCTION;
@@ -360,34 +384,49 @@ exports.handler = async function(event, context) {
         console.log('   Request ID:', requestId);
         console.log('   Timestamp:', timestamp);
 
-        // Determine callback URL for DOKU
-        // DOKU follows same flow as Midtrans: WordPress -> validates token -> redirects to NextPays
-        let callbackUrl;
-        if (callback_base_url) {
-            callbackUrl = callback_base_url;
-        } else if (test_mode) {
-            // Test mode: redirect to NextPay1 WordPress staging
-            callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
-        } else {
-            // Production: redirect to ArtCom WordPress staging
-            callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
-        }
-
-        // Trim invoice_number FIRST (before using in callback URL)
-        const invoiceNumber = String(order_id).substring(0, 30);
-
-        // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
-        // Determine source based on test_mode
-        const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
-        const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
+        // Check if this is a NextPay order (34 char ARTCOM_) - check BEFORE trimming!
+        const isNextPayOrder = order_id && order_id.startsWith('ARTCOM_') && order_id.length === 34;
         
-        console.log('✅ DOKU Callback token created (1 hour expiry)');
-        console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
-        console.log('🎯 Token source:', dokuSource);
+        // Trim invoice_number AFTER checking (for DOKU 30 char limit)
+        const invoiceNumber = String(order_id).substring(0, 30);
+        
+        // Determine callback URL for DOKU
+        // DOKU follows same flow as Midtrans: NextPay uses token, Wix goes direct
+        let callbackUrl;
+        
+        if (isNextPayOrder) {
+            // NextPay orders: Use callback_token flow
+            if (callback_base_url) {
+                callbackUrl = callback_base_url;
+            } else if (test_mode) {
+                // Test mode: redirect to NextPay1 WordPress staging
+                callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
+            } else {
+                // Production: redirect to ArtCom WordPress staging
+                callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
+            }
 
-        // Add callback_token, gateway and order_id parameters to callback URL
-        // WordPress will validate token (1 hour expiry) and redirect to NextPays
-        callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
+            // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
+            // Determine source based on test_mode
+            const dokuSource = test_mode ? 'nextpay1' : 'nextpay';
+            const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
+            
+            console.log('✅ DOKU Callback token created (1 hour expiry)');
+            console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
+            console.log('🎯 Token source:', dokuSource);
+
+            // Add callback_token, gateway and order_id parameters to callback URL
+            // WordPress will validate token (1 hour expiry) and redirect to NextPays
+            callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
+            console.log('✅ NextPay DOKU: Token included in callback URL');
+        } else {
+            // Wix/ArtCom orders: Direct callback (same as Midtrans)
+            // CRITICAL: Use invoiceNumber (30 chars) NOT original order_id
+            // Because DOKU receives invoiceNumber and returns it in webhook
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${invoiceNumber}&gateway=doku`;
+            console.log('✅ ArtCom/Wix DOKU: Direct callback (no token)');
+            console.log('   Using invoiceNumber (30 char) for consistency with DOKU');
+        }
         
         console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
         // Uses custom_name and credit_card from WordPress URL parameters
@@ -420,10 +459,10 @@ exports.handler = async function(event, context) {
         // MANDATORY FIELDS: order (amount, invoice_number) + payment (payment_due_date)
         const dokuRequestBody = {
             order: {
-                invoice_number: invoiceNumber,  // Trimmed for DOKU (30 chars max)
+                invoice_number: invoiceNumber,  // Trimmed to 30 chars
                 amount: parseInt(amount, 10),
                 callback_url: callbackUrl,  // Success/completed payments redirect
-                failed_url: callbackUrl,    // Failed/error payments redirect (same as callback)
+                failed_url: callbackUrl,    // Failed/error payments redirect
                 auto_redirect: true  // Auto redirect after payment
             },
             payment: {
@@ -440,7 +479,9 @@ exports.handler = async function(event, context) {
         console.log('💰 Order amount:', dokuRequestBody.order.amount);
         console.log('📋 Invoice number (trimmed to 30):', dokuRequestBody.order.invoice_number);
         console.log('🔗 Callback URL:', dokuRequestBody.order.callback_url);
+        console.log('❌ Failed URL:', dokuRequestBody.order.failed_url);
         console.log('⏱️  Payment due date:', dokuRequestBody.payment.payment_due_date, 'minutes');
+        console.log('🔄 Auto-redirect:', dokuRequestBody.order.auto_redirect);
 
         // STEP 1: Get Token B2B (required for signature)
         console.log('📍 Step 1: Obtaining Token B2B...');
@@ -564,7 +605,7 @@ exports.handler = async function(event, context) {
                     expiry_date: responseData.response.payment.expired_date,
                     doku_response: responseData,
                     timestamp: Math.floor(Date.now() / 1000),
-                    function_version: 'artcom_v8.0_multi_gateway',
+                    function_version: 'artcom_v8.6_multi_gateway',
                     payment_source: payment_source,
                     test_mode: test_mode
                 }
@@ -608,13 +649,13 @@ exports.handler = async function(event, context) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v8.0-multi-gateway'
+                    'User-Agent': 'ArtCom-Payment-Function-v8.6-multi-gateway'
                 },
                 body: JSON.stringify({
                     ...data,
                     timestamp: new Date().toISOString(),
                     timestamp_unix: Math.floor(Date.now() / 1000),
-                    function_version: 'artcom_v8.0_multi_gateway'
+                    function_version: 'artcom_v8.6_multi_gateway'
                 })
             });
 
@@ -1271,7 +1312,7 @@ exports.handler = async function(event, context) {
                         expiry_duration: '5 minutes',
                         midtrans_response: responseData,
                         timestamp: Math.floor(Date.now() / 1000),
-                        function_version: 'artcom_v8.0_multi_gateway',
+                        function_version: 'artcom_v8.6_multi_gateway',
                         payment_source: payment_source,
                         test_mode: test_mode,
                         nextpay_source: source,
@@ -1323,7 +1364,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v8.0_multi_gateway'
+                function_version: 'artcom_v8.6_multi_gateway'
             })
         };
     }
