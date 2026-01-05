@@ -1,5 +1,11 @@
 // netlify/functions/midtrans-token.js - ArtCom v8.7 - FINAL SYNC FIX (Original ID + No Auto Redirect)
 // =============================================================================
+// DEPENDENCIES
+// =============================================================================
+
+const { createLogger } = require('./utils/logger');
+
+// =============================================================================
 // PAYMENT GATEWAY CONFIGURATION
 // =============================================================================
 
@@ -58,6 +64,9 @@ const MIDTRANS_CONFIG = {
 // =============================================================================
 
 exports.handler = async function(event, context) {
+    // Initialize logger with correlation ID from headers
+    const logger = createLogger(event.headers, 'midtrans-token', 'v8.7');
+
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin, User-Agent, Referer',
@@ -68,11 +77,15 @@ exports.handler = async function(event, context) {
         'Vary': 'Origin, Access-Control-Request-Headers'
     };
 
-    console.log('🚀 ARTCOM v8.7 - MULTI-GATEWAY (Sync Fix + Original ID)');
-    console.log('🌍 Origin:', event.headers.origin || 'No origin');
+    logger.info('Function invoked', {
+        httpMethod: event.httpMethod,
+        origin: event.headers.origin || 'none',
+        path: event.path,
+        functionVersion: 'artcom_v8.7_multi_gateway'
+    });
 
     if (event.httpMethod === 'OPTIONS') {
-        console.log('✅ CORS Preflight - returning 200');
+        logger.info('CORS preflight request', { origin: event.headers.origin });
         return {
             statusCode: 200,
             headers,
@@ -86,12 +99,15 @@ exports.handler = async function(event, context) {
     }
 
     if (event.httpMethod !== 'POST') {
-        console.log('❌ Method not allowed:', event.httpMethod);
+        logger.warn('Invalid HTTP method', {
+            method: event.httpMethod,
+            allowedMethods: ['POST', 'OPTIONS']
+        });
         return {
             statusCode: 405,
             headers,
-            body: JSON.stringify({ 
-                success: false, 
+            body: JSON.stringify({
+                success: false,
                 error: 'Method not allowed',
                 allowed_methods: ['POST', 'OPTIONS']
             })
@@ -137,7 +153,7 @@ exports.handler = async function(event, context) {
      * Reference: https://developers.doku.com/accept-payment/direct-api/snap
      * Uses: Client-Id, Request-Id, Request-Timestamp, Request-Target, Digest
      */
-    function createDokuSignature(clientId, requestId, timestamp, requestBody, secretKey) {
+    function createDokuSignature(clientId, requestId, timestamp, requestBody, secretKey, logger) {
         const crypto = require('crypto');
 
         // Step 1: Minify JSON (no spaces, no newlines)
@@ -150,29 +166,27 @@ exports.handler = async function(event, context) {
             .digest('base64');
 
         // Step 3: Build Component String (Request Header Signature Format)
-        // Each component on new line with \n separator
-        // Format: Client-Id:value\nRequest-Id:value\nRequest-Timestamp:value\nRequest-Target:value\nDigest:value
         const requestTarget = '/checkout/v1/payment';
-        
         const componentString = `Client-Id:${clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${timestamp}\nRequest-Target:${requestTarget}\nDigest:${digest}`;
 
-        // Step 4: Create HMAC SHA-256 signature (Request Header uses SHA-256, not SHA-512!)
+        // Step 4: Create HMAC SHA-256 signature
         const hmac = crypto.createHmac('sha256', secretKey);
         hmac.update(componentString);
         const signature = hmac.digest('base64');
 
-        console.log('🔐 DOKU Signature Debug (Request Header Format):');
-        console.log('   Client-Id:', clientId);
-        console.log('   Request-Id:', requestId);
-        console.log('   Request-Timestamp:', timestamp);
-        console.log('   Request-Target:', requestTarget);
-        console.log('   Body length:', minifiedBody.length);
-        console.log('   Digest (SHA-256 base64):', digest.substring(0, 30) + '...');
-        console.log('   Component String:');
-        console.log('   ', componentString.replace(/\n/g, '\\n'));
-        console.log('   HMAC Algorithm: SHA256');
-        console.log('   Secret Key length:', secretKey ? secretKey.length : 0);
-        console.log('   Final signature:', signature.substring(0, 30) + '...');
+        logger.debug('DOKU signature created', {
+            gateway: 'doku',
+            operation: 'create_signature',
+            clientId,
+            requestId,
+            timestamp,
+            requestTarget,
+            bodyLength: minifiedBody.length,
+            digestPreview: digest.substring(0, 30) + '...',
+            hmacAlgorithm: 'SHA256',
+            secretKeyLength: secretKey ? secretKey.length : 0,
+            signaturePreview: signature.substring(0, 30) + '...'
+        });
 
         return signature;
     }
@@ -201,65 +215,60 @@ exports.handler = async function(event, context) {
      * Required before making payment API calls
      * Uses RSA-SHA256 signature with Private Key
      */
-    async function getDokuTokenB2B(clientId, privateKey, isProduction) {
+    async function getDokuTokenB2B(clientId, privateKey, isProduction, logger) {
         const crypto = require('crypto');
-        
-        console.log('🔑 ========== DOKU TOKEN B2B REQUEST START ==========');
-        console.log('🔍 Configuration Check:');
-        console.log('   Client ID:', clientId);
-        console.log('   Client ID Length:', clientId ? clientId.length : 0);
-        console.log('   Private Key Exists:', !!privateKey);
-        console.log('   Private Key Type:', typeof privateKey);
-        console.log('   Private Key Length:', privateKey ? privateKey.length : 0);
-        console.log('   Private Key First 100 chars:', privateKey ? privateKey.substring(0, 100) : 'NULL');
-        console.log('   Is Production:', isProduction);
-        
+        const timer = logger.startTimer('doku_token_b2b');
+
+        logger.logAuthAttempt('doku', clientId, 'token_b2b');
+
+        logger.debug('DOKU Token B2B configuration', {
+            gateway: 'doku',
+            operation: 'token_b2b',
+            clientId,
+            clientIdLength: clientId ? clientId.length : 0,
+            privateKeyExists: !!privateKey,
+            privateKeyLength: privateKey ? privateKey.length : 0,
+            isProduction
+        });
+
         const timestamp = getDokuTimestamp();
-        console.log('   Timestamp:', timestamp);
-        
-        // Create signature for token request: clientId|timestamp
-        // MUST use RSA-SHA256 with Private Key
         const stringToSign = `${clientId}|${timestamp}`;
-        console.log('   String to Sign:', stringToSign);
-        
+
+        logger.debug('Creating RSA-SHA256 signature', {
+            gateway: 'doku',
+            stringToSign,
+            timestamp
+        });
+
         let signature;
         try {
-            console.log('🔐 Creating RSA-SHA256 signature...');
-            console.log('   Private Key has \\n literal check:', privateKey.includes('\\n'));
-            console.log('   Private Key has real newline check:', privateKey.includes('\n'));
-            console.log('   Private Key char codes (first 60):', privateKey.substring(0, 60).split('').map(c => c.charCodeAt(0)).join(','));
-            
             const sign = crypto.createSign('RSA-SHA256');
             sign.update(stringToSign, 'utf8');
             sign.end();
             signature = sign.sign(privateKey, 'base64');
-            console.log('✅ Signature created successfully');
-            console.log('   Signature Length:', signature.length);
-            console.log('   Signature First 50 chars:', signature.substring(0, 50));
+
+            logger.debug('RSA signature created successfully', {
+                gateway: 'doku',
+                signatureLength: signature.length,
+                signaturePreview: signature.substring(0, 50) + '...'
+            });
         } catch (error) {
-            console.error('❌ RSA SIGNING ERROR:', error);
-            console.error('   Error Name:', error.name);
-            console.error('   Error Message:', error.message);
-            console.error('   Error Stack:', error.stack);
-            console.error('   Private key length:', privateKey ? privateKey.length : 0);
-            console.error('   Private key has literal \\n:', privateKey ? privateKey.includes('\\n') : false);
-            console.error('   Private key has real newline:', privateKey ? privateKey.includes('\n') : false);
-            console.error('   Private key first 150 chars:', privateKey ? privateKey.substring(0, 150) : 'NULL');
+            logger.error('RSA signing failed', error, {
+                gateway: 'doku',
+                operation: 'rsa_sign',
+                clientId,
+                privateKeyLength: privateKey ? privateKey.length : 0,
+                hasLiteralNewlines: privateKey ? privateKey.includes('\\n') : false,
+                hasRealNewlines: privateKey ? privateKey.includes('\n') : false
+            });
             return null;
         }
 
-        const tokenUrl = isProduction 
+        const tokenUrl = isProduction
             ? 'https://api.doku.com/authorization/v1/access-token/b2b'
             : 'https://api-sandbox.doku.com/authorization/v1/access-token/b2b';
 
-        console.log(' Sending Token B2B Request...');
-        console.log('   URL:', tokenUrl);
-        console.log('   Headers:');
-        console.log('     Content-Type: application/json');
-        console.log('     X-CLIENT-KEY:', clientId);
-        console.log('     X-TIMESTAMP:', timestamp);
-        console.log('     X-SIGNATURE:', signature.substring(0, 50) + '...');
-        console.log('   Body:', JSON.stringify({ grantType: 'client_credentials' }));
+        logger.logApiCall('doku', tokenUrl, 'POST');
 
         try {
             const response = await fetch(tokenUrl, {
@@ -275,32 +284,35 @@ exports.handler = async function(event, context) {
                 })
             });
 
-            console.log('📥 Response received');
-            console.log('   Status:', response.status);
-            console.log('   Status Text:', response.statusText);
-
             const responseData = await response.json();
-            console.log('📥 Response Body:', JSON.stringify(responseData, null, 2));
+            const duration = timer.end();
+
+            logger.logApiResponse('doku', response.status, response.ok, duration);
 
             if (response.ok && responseData.accessToken) {
-                console.log('✅ Token B2B obtained successfully');
-                console.log('   Token Length:', responseData.accessToken.length);
-                console.log('   Token First 50 chars:', responseData.accessToken.substring(0, 50));
-                console.log('   Expires in:', responseData.expiresIn, 'seconds');
-                console.log('🔑 ========== DOKU TOKEN B2B REQUEST END (SUCCESS) ==========');
+                logger.logAuthSuccess('doku', 'token_b2b', responseData.expiresIn);
+                logger.debug('Token B2B details', {
+                    gateway: 'doku',
+                    tokenLength: responseData.accessToken.length,
+                    expiresInSeconds: responseData.expiresIn
+                });
                 return responseData.accessToken;
             } else {
-                console.error('❌ TOKEN B2B REQUEST FAILED');
-                console.error('   HTTP Status:', response.status);
-                console.error('   Response:', JSON.stringify(responseData, null, 2));
-                console.log('🔑 ========== DOKU TOKEN B2B REQUEST END (FAILED) ==========');
+                logger.logAuthFailure('doku', 'Invalid response or missing access token', response.status);
+                logger.debug('Token B2B failure details', {
+                    gateway: 'doku',
+                    status: response.status,
+                    responseData
+                });
                 return null;
             }
         } catch (error) {
-            console.error('❌ TOKEN B2B NETWORK ERROR:', error);
-            console.error('   Error Name:', error.name);
-            console.error('   Error Message:', error.message);
-            console.log('🔑 ========== DOKU TOKEN B2B REQUEST END (ERROR) ==========');
+            timer.end();
+            logger.error('Token B2B network error', error, {
+                gateway: 'doku',
+                operation: 'token_b2b',
+                url: tokenUrl
+            });
             return null;
         }
     }
@@ -329,9 +341,11 @@ exports.handler = async function(event, context) {
     /**
      * Handle DOKU Payment Creation
      */
-    async function handleDokuPayment(requestData, headers) {
-        console.log('💳 ========== DOKU PAYMENT REQUEST START ==========');
-        console.log('📦 Request Data:', JSON.stringify(requestData, null, 2));
+    async function handleDokuPayment(requestData, headers, logger) {
+        const dokuLogger = logger.child({ gateway: 'doku', operation: 'payment_creation' });
+
+        dokuLogger.info('DOKU payment request started');
+        dokuLogger.debug('Request data received', { requestData });
         
         const {
             amount,
@@ -348,41 +362,40 @@ exports.handler = async function(event, context) {
             wix_signature
         } = requestData;
 
-        console.log('🔍 Extracted Parameters:');
-        console.log('   Amount:', amount);
-        console.log('   Order ID:', order_id);
-        console.log('   Item Name:', item_name);
-        console.log('   Callback Base URL:', callback_base_url);
-        console.log('   Test Mode:', test_mode);
-        console.log('   Payment Source:', payment_source);
-        console.log('   Custom Name:', custom_name);
-        console.log('   Credit Card:', credit_card ? 'PROVIDED' : 'NOT PROVIDED');
-        console.log('   Auto Redirect:', auto_redirect);
-        
-        if (payment_source === 'wix') {
-            console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
-        }
+        dokuLogger.debug('Extracted request parameters', {
+            amount,
+            orderId: order_id,
+            itemName: item_name,
+            callbackBaseUrl: callback_base_url,
+            testMode: test_mode,
+            paymentSource: payment_source,
+            hasCustomName: !!custom_name,
+            hasCreditCard: !!credit_card,
+            autoRedirect: auto_redirect,
+            ...(payment_source === 'wix' && { wixParams: { wix_ref, wix_expiry, hasSignature: !!wix_signature } })
+        });
 
         // ALWAYS USE PRODUCTION for Doku (credentials are production)
         const dokuEnv = DOKU_CONFIG.PRODUCTION;
 
-        console.log('⚙️ DOKU Configuration:');
-        console.log('   Environment: PRODUCTION (FORCED)');
-        console.log('   API URL:', dokuEnv.API_URL);
-        console.log('   Client ID:', dokuEnv.CLIENT_ID);
-        console.log('   Secret Key Exists:', !!dokuEnv.SECRET_KEY);
-        console.log('   Secret Key Length:', dokuEnv.SECRET_KEY ? dokuEnv.SECRET_KEY.length : 0);
-        console.log('   Private Key Exists:', !!dokuEnv.PRIVATE_KEY);
-        console.log('   Private Key Length:', dokuEnv.PRIVATE_KEY ? dokuEnv.PRIVATE_KEY.length : 0);
-        console.log('   Private Key First 100 chars:', dokuEnv.PRIVATE_KEY ? dokuEnv.PRIVATE_KEY.substring(0, 100) : 'NULL');
+        dokuLogger.debug('DOKU environment configuration', {
+            environment: 'PRODUCTION',
+            apiUrl: dokuEnv.API_URL,
+            clientId: dokuEnv.CLIENT_ID,
+            secretKeyConfigured: !!dokuEnv.SECRET_KEY,
+            secretKeyLength: dokuEnv.SECRET_KEY ? dokuEnv.SECRET_KEY.length : 0,
+            privateKeyConfigured: !!dokuEnv.PRIVATE_KEY,
+            privateKeyLength: dokuEnv.PRIVATE_KEY ? dokuEnv.PRIVATE_KEY.length : 0
+        });
 
         // Generate Doku request parameters
         const requestId = createDokuRequestId();
         const timestamp = getDokuTimestamp();
 
-        console.log('🆔 Request Metadata:');
-        console.log('   Request ID:', requestId);
-        console.log('   Timestamp:', timestamp);
+        dokuLogger.debug('Request metadata generated', {
+            requestId,
+            timestamp
+        });
 
         // Trim invoice_number for DOKU 30 char limit
         const invoiceNumber = String(order_id).substring(0, 30);
@@ -393,106 +406,103 @@ exports.handler = async function(event, context) {
         
         if (payment_source === 'wix' || payment_source === 'wix_simple') {
             // WIX orders: Direct callback to ArtCom webhook (NO TOKEN)
-            // CRITICAL: Use invoiceNumber (30 chars) NOT original order_id
-            // Because DOKU receives invoiceNumber and returns it in webhook
             callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${invoiceNumber}&gateway=doku`;
             dokuSource = 'wix';
-            console.log('✅ WIX DOKU: Direct callback (no token)');
-            console.log('   Using invoiceNumber (30 char) for consistency with DOKU');
+            dokuLogger.info('WIX DOKU payment - direct callback configured', {
+                callbackType: 'direct',
+                usingInvoiceNumber: true,
+                invoiceNumberLength: invoiceNumber.length
+            });
         } else {
             // NextPay orders: Use callback_token flow
             if (callback_base_url) {
                 callbackUrl = callback_base_url;
             } else if (test_mode || payment_source === 'nextpay_test') {
-                // Test mode: redirect to NextPay1 WordPress staging
                 callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
             } else {
-                // Production: redirect to ArtCom WordPress staging
                 callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
             }
 
-            // Create callback token for DOKU (same as Midtrans - 1 hour expiry)
-            // Determine source based on test_mode
+            // Create callback token for DOKU
             dokuSource = (test_mode || payment_source === 'nextpay_test') ? 'nextpay1' : 'nextpay';
             const callbackToken = createCallbackToken(invoiceNumber, dokuSource);
-            
-            console.log('✅ DOKU Callback token created (1 hour expiry)');
-            console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
-            console.log('🎯 Token source:', dokuSource);
 
-            // Add callback_token, gateway and order_id parameters to callback URL
-            // WordPress will validate token (1 hour expiry) and redirect to NextPays
+            dokuLogger.info('DOKU callback token created', {
+                tokenExpiry: '1 hour',
+                tokenTimestamp: Math.floor(Date.now() / 1000),
+                tokenSource: dokuSource
+            });
+
             callbackUrl += `?callback_token=${callbackToken}&gateway=doku&order_id=${invoiceNumber}`;
-            console.log('✅ NextPay DOKU: Token included in callback URL');
+            dokuLogger.debug('NextPay DOKU callback URL prepared', { hasToken: true });
         }
-        
-        console.log('🔗 Callback URL:', callbackUrl);        // Generate customer data using Advanced Deterministic Generator (same as Midtrans)
-        // Uses custom_name and credit_card from WordPress URL parameters
+
+        dokuLogger.debug('Callback URL configured', {
+            url: dokuLogger.masker.maskUrl(callbackUrl),
+            source: dokuSource
+        });        // Generate customer data
         let nameForGeneration;
         if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
             nameForGeneration = custom_name.trim();
-            console.log('👤 Using provided custom name:', nameForGeneration);
+            dokuLogger.debug('Using provided custom name', { name: nameForGeneration });
         } else {
             nameForGeneration = generateFallbackName(order_id, amount);
-            console.log('🎯 Generated fallback name:', nameForGeneration);
+            dokuLogger.debug('Generated fallback name', { name: nameForGeneration });
         }
-        
+
         const customerData = generateDeterministicContact(nameForGeneration, credit_card);
-        console.log('✅ Customer data generated:', {
-            input_name: nameForGeneration,
-            output_name: `${customerData.first_name} ${customerData.last_name}`,
-            email: customerData.email,
-            phone: customerData.phone
+        dokuLogger.debug('Customer data generated', {
+            inputName: nameForGeneration,
+            outputName: `${customerData.first_name} ${customerData.last_name}`,
+            hasEmail: !!customerData.email,
+            hasPhone: !!customerData.phone
         });
 
-        // CRITICAL FIX: Trim invoice_number to 30 chars (DOKU Credit Card requirement)
-        // DOKU Documentation: Max 64 chars normally, but 30 chars if Credit Card is enabled
-        // invoiceNumber already defined above before callback URL creation
-        
-        console.log('📋 Original Order ID:', order_id);
-        console.log('📋 DOKU Invoice Number (30 chars):', invoiceNumber);
+        dokuLogger.debug('Invoice number prepared', {
+            originalOrderId: order_id,
+            invoiceNumber: invoiceNumber,
+            trimmedTo30Chars: true
+        });
 
-        // Prepare Doku request body (DOKU Checkout API format)
-        // Reference: https://developers.doku.com/accept-payment/direct-api/checkout
-        // MANDATORY FIELDS: order (amount, invoice_number) + payment (payment_due_date)
+        // Prepare Doku request body
         const dokuRequestBody = {
             order: {
-                invoice_number: invoiceNumber,  // Trimmed to 30 chars
+                invoice_number: invoiceNumber,
                 amount: parseInt(amount, 10),
-                callback_url: callbackUrl,  // Success/completed payments redirect
-                failed_url: callbackUrl,    // Failed/error payments redirect
-                auto_redirect: true  // Auto redirect after payment
+                callback_url: callbackUrl,
+                failed_url: callbackUrl,
+                auto_redirect: true
             },
             payment: {
-                payment_due_date: 5  // MANDATORY: minutes until payment expires (5 minutes like Midtrans)
+                payment_due_date: 5
             },
             customer: {
                 name: `${customerData.first_name} ${customerData.last_name}`,
                 email: customerData.email
             }
         };
-        
-        console.log('👤 Customer:', dokuRequestBody.customer.name);
-        console.log('📧 Email:', dokuRequestBody.customer.email);
-        console.log('💰 Order amount:', dokuRequestBody.order.amount);
-        console.log('📋 Invoice number (trimmed to 30):', dokuRequestBody.order.invoice_number);
-        console.log('🔗 Callback URL:', dokuRequestBody.order.callback_url);
-        console.log('❌ Failed URL:', dokuRequestBody.order.failed_url);
-        console.log('⏱️  Payment due date:', dokuRequestBody.payment.payment_due_date, 'minutes');
-        console.log('🔄 Auto-redirect:', dokuRequestBody.order.auto_redirect);
 
-        // STEP 1: Get Token B2B (required for signature)
-        console.log('📍 Step 1: Obtaining Token B2B...');
+        dokuLogger.debug('DOKU request body prepared', {
+            customerName: dokuRequestBody.customer.name,
+            amount: dokuRequestBody.order.amount,
+            invoiceNumber: dokuRequestBody.order.invoice_number,
+            paymentDueMinutes: dokuRequestBody.payment.payment_due_date,
+            autoRedirect: dokuRequestBody.order.auto_redirect
+        });
+
+        // STEP 1: Get Token B2B
+        dokuLogger.info('Step 1: Obtaining Token B2B');
         const tokenB2B = await getDokuTokenB2B(
             dokuEnv.CLIENT_ID,
-            dokuEnv.PRIVATE_KEY,  // Using RSA Private Key
-            true  // Production
+            dokuEnv.PRIVATE_KEY,
+            true,
+            dokuLogger
         );
 
         if (!tokenB2B) {
-            console.error('❌ Failed to obtain Token B2B - cannot proceed');
-            console.error('   HINT: Make sure PRIVATE_KEY is configured in DOKU_CONFIG');
-            console.error('   Get your Private Key from DOKU Dashboard → Settings → API Keys');
+            dokuLogger.error('Failed to obtain Token B2B', null, {
+                hint: 'Check PRIVATE_KEY configuration in DOKU_CONFIG'
+            });
             return {
                 statusCode: 500,
                 headers: headers,
@@ -506,16 +516,17 @@ exports.handler = async function(event, context) {
             };
         }
 
-        console.log('✅ Token B2B obtained successfully');
+        dokuLogger.info('Token B2B obtained successfully');
 
-        // STEP 2: Create signature (Request Header Format - NO Token B2B in signature!)
-        console.log('📍 Step 2: Creating signature (Request Header Format)...');
+        // STEP 2: Create signature
+        dokuLogger.info('Step 2: Creating signature');
         const signature = createDokuSignature(
             dokuEnv.CLIENT_ID,
             requestId,
             timestamp,
-            dokuRequestBody,  // Pass object, not string
-            dokuEnv.SECRET_KEY
+            dokuRequestBody,
+            dokuEnv.SECRET_KEY,
+            dokuLogger
         );
 
         // STEP 3: Prepare headers for Doku API (NO Authorization header per documentation)
@@ -530,33 +541,57 @@ exports.handler = async function(event, context) {
             // NO Authorization header - Checkout uses HMAC Signature only
         };
 
-        console.log('📤 Step 3: Sending request to Doku (Request Header Signature)...');
-        console.log('   Request-Id:', requestId);
-        console.log('   Timestamp (UTC Z format):', timestamp);
-        console.log('   Headers:', JSON.stringify({...dokuHeaders, 'Signature': 'HMACSHA256=***'}, null, 2));
+        // STEP 3: Send request to DOKU
+        dokuLogger.info('Step 3: Sending payment request to DOKU');
+        dokuLogger.debug('Request details', {
+            requestId,
+            timestamp,
+            endpoint: dokuEnv.API_URL
+        });
+
+        const timer = dokuLogger.startTimer('doku_payment_api_call');
 
         try {
             const response = await fetch(dokuEnv.API_URL, {
                 method: 'POST',
                 headers: dokuHeaders,
-                body: JSON.stringify(dokuRequestBody)  // Stringify here, not earlier
+                body: JSON.stringify(dokuRequestBody)
             });
 
             const responseText = await response.text();
-            console.log('📡 Doku response status:', response.status);
-            console.log('📡 Response length:', responseText.length);
+            const duration = timer.end();
+
+            dokuLogger.logApiResponse('doku', response.status, response.ok, duration);
+            dokuLogger.debug('Response received', {
+                status: response.status,
+                responseLength: responseText.length
+            });
 
             if (!response.ok) {
-                console.error('❌ Doku API Error');
-                console.error('   Status:', response.status);
-                console.error('   Response:', responseText.substring(0, 500));
-
                 let errorData;
                 try {
                     errorData = JSON.parse(responseText);
                 } catch (e) {
                     errorData = { error: responseText };
                 }
+
+                dokuLogger.logPaymentError('doku', order_id, 'DOKU API returned error', response.status);
+                dokuLogger.debug('DOKU API error details', {
+                    status: response.status,
+                    errorData
+                });
+
+                // Request summary for tracking
+                logger.info('[REQUEST_COMPLETE]', {
+                    success: false,
+                    gateway: 'doku',
+                    paymentSource: payment_source,
+                    totalDurationMs: logger._getElapsedTime(),
+                    orderId: order_id,
+                    amount: parseInt(amount),
+                    errorType: 'payment_failed',
+                    statusCode: response.status
+                });
 
                 return {
                     statusCode: response.status,
@@ -573,9 +608,11 @@ exports.handler = async function(event, context) {
 
             const responseData = JSON.parse(responseText);
 
-            console.log('✅ Doku payment created successfully');
-            console.log('   Has payment URL:', !!responseData.response?.payment?.url);
-            console.log('   Has token:', !!responseData.response?.payment?.token_id);
+            dokuLogger.logPaymentSuccess('doku', order_id, !!responseData.response?.payment?.token_id);
+            dokuLogger.debug('Payment response details', {
+                hasPaymentUrl: !!responseData.response?.payment?.url,
+                hasToken: !!responseData.response?.payment?.token_id
+            });
 
             // Send webhook notification
             await sendWebhookNotification({
@@ -587,6 +624,16 @@ exports.handler = async function(event, context) {
                 test_mode: test_mode,
                 doku_token: responseData.response?.payment?.token_id,
                 callback_url: callbackUrl
+            }, dokuLogger);
+
+            // Request summary for tracking
+            logger.info('[REQUEST_COMPLETE]', {
+                success: true,
+                gateway: 'doku',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                amount: parseInt(amount)
             });
 
         return {
@@ -609,7 +656,23 @@ exports.handler = async function(event, context) {
                 }
             })
         };        } catch (error) {
-            console.error('🚨 Doku payment error:', error);
+            timer.end();
+            dokuLogger.error('DOKU payment creation failed with exception', error, {
+                orderId: order_id,
+                amount
+            });
+
+            // Request summary for tracking
+            logger.info('[REQUEST_COMPLETE]', {
+                success: false,
+                gateway: 'doku',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                errorType: 'exception',
+                errorMessage: error.message
+            });
+
             return {
                 statusCode: 500,
                 headers: headers,
@@ -626,7 +689,7 @@ exports.handler = async function(event, context) {
     /**
      * Send webhook notification
      */
-    async function sendWebhookNotification(data) {
+    async function sendWebhookNotification(data, logger) {
         const isNextPay = data.order_id && data.order_id.startsWith('ARTCOM_') && data.order_id.length === 34;
 
         let webhookUrl;
@@ -640,26 +703,39 @@ exports.handler = async function(event, context) {
             webhookUrl = 'https://www.artcom.design/webhook/midtrans.php';
         }
 
-        console.log('📡 Sending webhook to:', webhookUrl);
+        logger.info('Sending webhook notification', {
+            webhookUrl,
+            event: data.event,
+            orderId: data.order_id,
+            gateway: data.gateway
+        });
+
+        const timer = logger.startTimer('webhook_notification');
 
         try {
             const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'User-Agent': 'ArtCom-Payment-Function-v8.6-multi-gateway'
+                    'User-Agent': 'ArtCom-Payment-Function-v8.7-multi-gateway'
                 },
                 body: JSON.stringify({
                     ...data,
                     timestamp: new Date().toISOString(),
                     timestamp_unix: Math.floor(Date.now() / 1000),
-                    function_version: 'artcom_v8.6_multi_gateway'
+                    function_version: 'artcom_v8.7_multi_gateway'
                 })
             });
 
-            console.log('📡 Webhook response:', response.status);
+            const duration = timer.end();
+            logger.logWebhookSent(webhookUrl, response.ok, response.status, duration);
         } catch (error) {
-            console.error('🚨 Webhook notification failed:', error.message);
+            timer.end();
+            logger.error('Webhook notification failed', error, {
+                webhookUrl,
+                event: data.event,
+                orderId: data.order_id
+            });
         }
     }
 
@@ -962,7 +1038,7 @@ exports.handler = async function(event, context) {
             user_agent,
             origin,
             payment_source = 'legacy',
-            payment_gateway,  // REQUIRED: Gateway selection (midtrans or doku) - NO DEFAULT
+            payment_gateway,
             wix_ref,
             wix_expiry,
             wix_signature,
@@ -972,18 +1048,19 @@ exports.handler = async function(event, context) {
             test_mode = false
         } = requestData;
 
-        console.log('🎯 Payment Gateway:', payment_gateway);
-        console.log('💰 Amount:', amount);
-        console.log('📦 Order ID:', order_id);
-        console.log('🎨 Payment Source:', payment_source);
-        console.log('🧪 Test Mode:', test_mode);
+        logger.logRequest(event.httpMethod, event.headers, requestData);
 
-        // ============================================================================
-        // GATEWAY VALIDATION: payment_gateway is REQUIRED
-        // ============================================================================
+        logger.info('Payment request received', {
+            gateway: payment_gateway,
+            amount,
+            orderId: order_id,
+            paymentSource: payment_source,
+            testMode: test_mode
+        });
 
+        // Gateway validation
         if (!payment_gateway) {
-            console.error('❌ Missing payment_gateway parameter');
+            logger.logValidationError('payment_gateway', null, 'Required parameter missing');
             return {
                 statusCode: 400,
                 headers,
@@ -997,7 +1074,7 @@ exports.handler = async function(event, context) {
         }
 
         if (payment_gateway !== 'midtrans' && payment_gateway !== 'doku') {
-            console.error('❌ Invalid payment_gateway:', payment_gateway);
+            logger.logValidationError('payment_gateway', payment_gateway, 'Invalid gateway value');
             return {
                 statusCode: 400,
                 headers,
@@ -1011,96 +1088,97 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // ============================================================================
-        // GATEWAY ROUTING: Route to appropriate payment gateway
-        // ============================================================================
-
+        // Gateway routing
         if (payment_gateway === 'doku') {
-            console.log('🔀 Routing to DOKU payment gateway...');
-            return await handleDokuPayment(requestData, headers);
+            logger.info('Routing to DOKU payment gateway');
+            return await handleDokuPayment(requestData, headers, logger);
         }
 
         if (payment_gateway === 'midtrans') {
-            console.log('🔀 Routing to MIDTRANS payment gateway...');
+            logger.info('Routing to MIDTRANS payment gateway');
         }
 
         // ============================================================================
         // MIDTRANS PAYMENT FLOW (EXISTING CODE BELOW)
         // ============================================================================
 
+        const midtransLogger = logger.child({ gateway: 'midtrans', operation: 'payment_creation' });
+
         const finalAmount = parseInt(String(amount).replace(/[^\d]/g, ''), 10);
         const finalItemName = item_name || 'ArtCom Design Payment';
-        
-        console.log('💰 Parsed amount:', finalAmount);
-        console.log('🎯 Order ID:', order_id);
-        console.log('🎨 Payment source:', payment_source);
-        console.log('👤 Custom name:', custom_name);
-        console.log('💳 Credit card:', credit_card);
-        console.log('📏 Order ID length:', order_id ? order_id.length : 0);
-        console.log('🧪 Test mode:', test_mode);
-        
-        // *** DETERMINE SOURCE based on payment_source (NOT order_id length!) ***
+
+        midtransLogger.debug('Midtrans request parameters', {
+            parsedAmount: finalAmount,
+            orderId: order_id,
+            paymentSource: payment_source,
+            hasCustomName: !!custom_name,
+            hasCreditCard: !!credit_card,
+            orderIdLength: order_id ? order_id.length : 0,
+            testMode: test_mode
+        });
+
+        // Determine source
         let source;
-        
         if (payment_source === 'wix' || payment_source === 'wix_simple') {
             source = 'wix';
-            console.log('🎯 Source: wix (WIX/ArtCom)');
+            midtransLogger.info('Source determined: WIX/ArtCom', {
+                source,
+                ...(payment_source === 'wix' && { wixParams: { wix_ref, wix_expiry, hasSignature: !!wix_signature } })
+            });
         } else if (payment_source === 'nextpay_test' || test_mode === true) {
             source = 'nextpay1';
-            console.log('🎯 Source: nextpay1 (TEST MODE)');
+            midtransLogger.info('Source determined: NextPay TEST', { source });
         } else {
             source = 'nextpay';
-            console.log('🎯 Source: nextpay (PRODUCTION)');
+            midtransLogger.info('Source determined: NextPay PRODUCTION', { source });
         }
-        
-        if (payment_source === 'wix') {
-            console.log('🛒 Wix parameters:', { wix_ref, wix_expiry, wix_signature });
-        }
-        
+
+        // Validate amount
         if (!finalAmount || finalAmount <= 0 || finalAmount > 999999999) {
-            console.error('❌ Invalid amount:', finalAmount);
+            midtransLogger.logValidationError('amount', finalAmount, 'Must be between 1 and 999,999,999');
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: 'Invalid amount: must be between 1 and 999,999,999', 
+                body: JSON.stringify({
+                    success: false,
+                    error: 'Invalid amount: must be between 1 and 999,999,999',
                     received: amount,
-                    parsed: finalAmount 
+                    parsed: finalAmount
                 })
             };
         }
 
+        // Validate order ID based on payment source
         if (payment_source === 'legacy' || payment_source === 'nextpay_test') {
-            console.log('🔍 Validating legacy/test token...');
-            console.log('Token length:', order_id ? order_id.length : 0);
-            console.log('Starts with ARTCOM_:', order_id ? order_id.startsWith('ARTCOM_') : false);
-            
+            midtransLogger.debug('Validating legacy/test token', {
+                tokenLength: order_id ? order_id.length : 0,
+                startsWithARTCOM: order_id ? order_id.startsWith('ARTCOM_') : false
+            });
+
             if (!order_id || order_id.length !== 34 || !order_id.startsWith('ARTCOM_')) {
-                console.error('❌ Invalid legacy token:', order_id);
-                
+                midtransLogger.logValidationError('order_id', order_id, 'Invalid 34-character token format for legacy system');
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ 
-                        success: false, 
-                        error: 'Invalid 34-character token format for legacy system', 
+                    body: JSON.stringify({
+                        success: false,
+                        error: 'Invalid 34-character token format for legacy system',
                         received: order_id,
                         received_length: order_id ? order_id.length : 0,
                         expected: 'ARTCOM_ + 27 characters = 34 total'
                     })
                 };
             }
-            console.log('✅ Legacy/test token validation passed');
+            midtransLogger.logValidationSuccess('order_id', 'Legacy/test token valid');
         } else if (payment_source === 'wix' || payment_source === 'wix_simple') {
             if (!order_id || !order_id.startsWith('ARTCOM_')) {
-                console.error('❌ Invalid Wix order ID:', order_id);
+                midtransLogger.logValidationError('order_id', order_id, 'Invalid Wix order ID format');
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ 
-                        success: false, 
-                        error: 'Invalid order ID format for Wix system', 
+                    body: JSON.stringify({
+                        success: false,
+                        error: 'Invalid order ID format for Wix system',
                         received: order_id,
                         expected: 'ARTCOM_ + reference'
                     })
@@ -1108,85 +1186,84 @@ exports.handler = async function(event, context) {
             }
         } else {
             if (!order_id || order_id.length < 5) {
-                console.error('❌ Invalid order ID:', order_id);
+                midtransLogger.logValidationError('order_id', order_id, 'Order ID too short');
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ 
-                        success: false, 
-                        error: 'Invalid order ID', 
+                    body: JSON.stringify({
+                        success: false,
+                        error: 'Invalid order ID',
                         received: order_id
                     })
                 };
             }
         }
-        
-        console.log('✅ All validations passed');
+
+        midtransLogger.info('All validations passed');
 
         const now = new Date();
         const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
         const midtransDate = jakartaTime.toISOString().slice(0, 19).replace('T', ' ') + ' +0700';
-        
-        console.log('📅 Midtrans date format:', midtransDate);
 
-        let nameForGeneration;
-        
-        if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
-            nameForGeneration = custom_name.trim();
-            console.log('👤 Using provided custom name:', nameForGeneration);
-        } else {
-            nameForGeneration = generateFallbackName(order_id, finalAmount);
-            console.log('🎯 Generated fallback name:', nameForGeneration);
-        }
-        
-        const customerData = generateDeterministicContact(nameForGeneration, credit_card);
-        
-        console.log('✅ Customer data generated:', {
-            input_name: nameForGeneration,
-            output_name: `${customerData.first_name} ${customerData.last_name}`,
-            email: customerData.email,
-            phone: customerData.phone
+        midtransLogger.debug('Midtrans timestamp generated', {
+            timestamp: midtransDate,
+            timezone: '+0700'
         });
 
-        // *** CREATE CALLBACK URL WITH SOURCE ***
-        let callbackUrl;
-        
-        if (payment_source === 'wix' || payment_source === 'wix_simple') {
-            // WIX orders: Direct callback to ArtCom webhook (NO TOKEN)
-            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
-            console.log('✅ WIX: Direct callback (no token)');
+        // Generate customer data
+        let nameForGeneration;
+        if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
+            nameForGeneration = custom_name.trim();
+            midtransLogger.debug('Using provided custom name', { name: nameForGeneration });
         } else {
-            // NextPay orders: Token callback flow
-            const callbackToken = createCallbackToken(order_id, source);
-            console.log('✅ Token created with SOURCE at payment start (1 hour expiry)');
-            console.log('🔐 Token timestamp:', Math.floor(Date.now() / 1000));
-            console.log('🎯 Token source:', source);
-            
-            // DYNAMICALLY DETERMINE CALLBACK BASE URL
-            let callbackBase;
-            
-            if (callback_base_url) {
-                // If explicitly provided, use it
-                callbackBase = callback_base_url;
-                console.log('✅ Using provided callback_base_url:', callbackBase);
-            } else if (source === 'nextpay1') {
-                // Test mode: use nextpays1.de WordPress staging
-                callbackBase = 'https://nextpays1staging.wpcomstaging.com';
-                console.log('✅ Test mode: Using nextpays1 staging');
-            } else {
-                // Production: use existing WordPress staging
-                callbackBase = 'https://artcomdesign3-umbac.wpcomstaging.com';
-                console.log('✅ Production mode: Using artcom staging');
-            }
-            
-            // CRITICAL FIX: Put token FIRST so Midtrans can append its params with &
-            // Midtrans will add: &order_id=X&status_code=Y&transaction_status=Z
-            callbackUrl = `${callbackBase}?callback_token=${callbackToken}`;
-            
-            console.log('✅ NextPay: Token included in callback URL');
+            nameForGeneration = generateFallbackName(order_id, finalAmount);
+            midtransLogger.debug('Generated fallback name', { name: nameForGeneration });
         }
-        
-        console.log('🔗 Callback URL:', callbackUrl);
+
+        const customerData = generateDeterministicContact(nameForGeneration, credit_card);
+        midtransLogger.debug('Customer data generated', {
+            inputName: nameForGeneration,
+            outputName: `${customerData.first_name} ${customerData.last_name}`,
+            hasEmail: !!customerData.email,
+            hasPhone: !!customerData.phone
+        });
+
+        // Create callback URL
+        let callbackUrl;
+
+        if (payment_source === 'wix' || payment_source === 'wix_simple') {
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}`;
+            midtransLogger.info('WIX payment - direct callback configured', {
+                callbackType: 'direct',
+                noToken: true
+            });
+        } else {
+            const callbackToken = createCallbackToken(order_id, source);
+            midtransLogger.info('Callback token created', {
+                tokenExpiry: '1 hour',
+                tokenTimestamp: Math.floor(Date.now() / 1000),
+                tokenSource: source
+            });
+
+            let callbackBase;
+            if (callback_base_url) {
+                callbackBase = callback_base_url;
+                midtransLogger.debug('Using provided callback_base_url', { url: callbackBase });
+            } else if (source === 'nextpay1') {
+                callbackBase = 'https://nextpays1staging.wpcomstaging.com';
+                midtransLogger.debug('Using test mode callback URL', { url: callbackBase });
+            } else {
+                callbackBase = 'https://artcomdesign3-umbac.wpcomstaging.com';
+                midtransLogger.debug('Using production callback URL', { url: callbackBase });
+            }
+
+            callbackUrl = `${callbackBase}?callback_token=${callbackToken}`;
+            midtransLogger.debug('NextPay callback URL prepared', { hasToken: true });
+        }
+
+        midtransLogger.debug('Callback URL configured', {
+            url: midtransLogger.masker.maskUrl(callbackUrl)
+        });
 
         const midtransParams = {
             transaction_details: {
@@ -1229,7 +1306,8 @@ exports.handler = async function(event, context) {
             midtransParams.custom_reference = wix_ref;
         }
 
-        console.log('📤 Sending webhook notification (Midtrans)...');
+        midtransLogger.logPaymentInitiated('midtrans', order_id, finalAmount, payment_source);
+
         await sendWebhookNotification({
             event: `payment_initiated_${payment_source}`,
             order_id: order_id,
@@ -1258,16 +1336,20 @@ exports.handler = async function(event, context) {
                     signature: wix_signature
                 }
             })
-        });
+        }, midtransLogger);
 
         const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
         const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-        console.log('🔗 Calling Midtrans API...');
-        console.log('🔗 Order ID:', order_id);
-        console.log('🔗 Amount IDR:', finalAmount);
-        console.log('👤 Customer:', `${customerData.first_name} ${customerData.last_name} (${customerData.email})`);
+        midtransLogger.logApiCall('midtrans', apiUrl, 'POST');
+        midtransLogger.debug('Midtrans request details', {
+            orderId: order_id,
+            amount: finalAmount,
+            customerName: `${customerData.first_name} ${customerData.last_name}`
+        });
+
+        const timer = midtransLogger.startTimer('midtrans_payment_api_call');
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -1275,21 +1357,38 @@ exports.handler = async function(event, context) {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: authHeader,
-                'User-Agent': 'ArtCom-v8.0-multi-gateway'
+                'User-Agent': 'ArtCom-v8.7-multi-gateway'
             },
             body: JSON.stringify(midtransParams)
         });
 
         const responseData = await response.json();
-        
-        console.log('📡 Midtrans response status:', response.status);
-        console.log('📡 Has token:', !!responseData.token);
-        console.log('📡 Has redirect_url:', !!responseData.redirect_url);
+        const duration = timer.end();
+
+        midtransLogger.logApiResponse('midtrans', response.status, response.ok, duration);
+        midtransLogger.debug('Midtrans response received', {
+            status: response.status,
+            hasToken: !!responseData.token,
+            hasRedirectUrl: !!responseData.redirect_url
+        });
 
         if (response.ok && responseData.token) {
-            console.log('✅ SUCCESS - Token with SOURCE included in callback URL');
-            console.log('🎯 Source in token:', source);
-            
+            midtransLogger.logPaymentSuccess('midtrans', order_id, true);
+            midtransLogger.info('Payment created successfully with callback token', {
+                source,
+                tokenIncludedInCallback: true
+            });
+
+            // Request summary for tracking
+            logger.info('[REQUEST_COMPLETE]', {
+                success: true,
+                gateway: 'midtrans',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                amount: finalAmount
+            });
+
             return {
                 statusCode: 200,
                 headers,
@@ -1332,8 +1431,24 @@ exports.handler = async function(event, context) {
                 })
             };
         } else {
-            console.error('❌ Midtrans error response');
-            
+            midtransLogger.logPaymentError('midtrans', order_id, 'Failed to generate payment token', response.status);
+            midtransLogger.debug('Midtrans error details', {
+                status: response.status,
+                responseData
+            });
+
+            // Request summary for tracking
+            logger.info('[REQUEST_COMPLETE]', {
+                success: false,
+                gateway: 'midtrans',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                amount: finalAmount,
+                errorType: 'payment_failed',
+                statusCode: response.status
+            });
+
             return {
                 statusCode: 400,
                 headers,
@@ -1348,7 +1463,20 @@ exports.handler = async function(event, context) {
         }
 
     } catch (error) {
-        console.error('🚨 Function error:', error);
+        logger.error('Function execution failed', error, {
+            httpMethod: event.httpMethod,
+            path: event.path
+        });
+
+        // Request summary for tracking
+        logger.info('[REQUEST_COMPLETE]', {
+            success: false,
+            gateway: payment_gateway || 'unknown',
+            totalDurationMs: logger._getElapsedTime(),
+            errorType: 'exception',
+            errorMessage: error.message
+        });
+
         return {
             statusCode: 500,
             headers,
@@ -1357,7 +1485,7 @@ exports.handler = async function(event, context) {
                 error: 'Internal server error',
                 message: error.message,
                 timestamp: Math.floor(Date.now() / 1000),
-                function_version: 'artcom_v8.6_multi_gateway'
+                function_version: 'artcom_v8.7_multi_gateway'
             })
         };
     }
