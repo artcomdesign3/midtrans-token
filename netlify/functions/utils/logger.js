@@ -177,6 +177,9 @@ class StructuredLogger {
             case 'warn':
                 console.warn(output);
                 break;
+            case 'debug':
+                console.debug(output);
+                break;
             default:
                 console.log(output);
         }
