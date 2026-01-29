@@ -1,0 +1,25 @@
+[build]
+  functions = "netlify/functions"
+
+[dev]
+  port = 9999
+  autoLaunch = false
+
+[functions]
+  directory = "netlify/functions"
+
+# URL Aliases - Hide "midtrans" name from external services
+[[redirects]]
+  from = "/api/payment-gateway"
+  to = "/.netlify/functions/midtrans-token"
+  status = 200
+
+[[redirects]]
+  from = "/api/payment-gateway/*"
+  to = "/.netlify/functions/midtrans-token/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/webhook/airwallex"
+  to = "/.netlify/functions/midtrans-token?webhook=airwallex"
+  status = 200
