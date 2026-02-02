@@ -9,57 +9,115 @@ const { createLogger } = require('./utils/logger');
 // PAYMENT GATEWAY CONFIGURATION
 // =============================================================================
 
-// DOKU PRIVATE KEY - HARDCODED FOR STABILITY
-const DOKU_PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
-MIIEogIBAAKCAQBx9x1Fr4sYaHwl5mpImdzprwL3UUn+9ecD6ZKAPF2gPblXV3uP
-UHxPrChIM/I1JhxYPRg+OFFt+gsg7Xsi4M9u3xno0eoAW/+COl/1iDVWsMkhmneD
-Swlv7dRjnekwFkZzSEq6ZMdImXApmhvK/BhuzRMdyUC/MV2PudR/YziknjHQN+FD
-xE7OD7WGN6O+l61AOuDmXcejEwVrjQcmk4QosGzC/7p5PFrzZ3O6q83i7xUfEHsj
-LPiRvmXxmIHTCBZ39475B+b4rlE8gLNHH8HmEJSuKbiu3waYXFK78wKAfW6SNVIO
-OOk4j0DD7tj0hMthpJIYs8hakEqWdwKdTtqBAgMBAAECggEAcdIqTCTsuO3xwDCG
-SghRmJqQTc3EJ34UwdWP2b9wis/awh6/av0pirEYcjRfXTG48W/jPJEm0r3+S16j
-ssvwoHz19Y9hNAauA7SljiYBj5l057jMUDarMDzJ+MwHz10P86dp6wsn9Zw5Z3Ng
-+rQY+uCajQ8pOUrmdNtWHfxM4Cs/QqBh37SNYmWqlDvroWg8Wbpp+FDzj2DacjYf
-9w2lzM2UwgeMjQlTi9k0/NTDjqItgERHe8PsPfgFxnk/eLeoWNT+xDS4OAmP6Ahu
-9y8CzywIeQvIBiGJwmpe50v1X2bvA1tJMibxAQAGI+Jpb0IPvGesU3gy3LNlh5o3
-hnmyoQKBgQDA5GC/okj9Y6VmWhBeXUsqs5PZxjWeGX83LXBKXLZLLAUgDi/Pn6sP
-WHEw9wVA7ypZhhVjP3BDyWlYnE2vfR1NLu3DdWOdY9Iy8OS9lcWP9qKUQ4tD/gKk
-r5pKbW0u8Bu/FB0Ucz2E+5iF1Lml7kxRilvBHdcU/gJyUA0vuQwsDQKBgQCXQD6G
-P5+L7jV5Rbz3dwOZcAUXjrClYOpeJSQq/fxOFvpYdvfNC29kKac2m7gCJ+mzTeFB
-3SMvmcfgXmS2rxg4xkKQGWjGF/xWrBKEq4haulAlNVMhfkyf+K8A5Hr/bRIRkzi1
-c+6/CBrFVqHGe8ijBgJfr24Dk1kjKWbIylUnRQKBgQCgUbBv1iwgHl/sT9Lm+1ds
-KFEsYWdS/hIUBDoeNCx3EiE4YVIvmJ+OY43Aiq7dJ2rleWHxWVqvnIloUpDm2HAw
-JF8NY1XmDH86Q6l6QS8w1maOIA1x936u7hyo24YxyvLkv4zj4FwzWQGNyh564TKh
-WwOj4G9RTUUvSYWMMpsBSQKBgD+lfyoK995wXPwtRnl0EYWtx9bD6r2M7NK1GmUk
-/9j0fmBfn6MfHr6tcHngSSxPE16qdRG8NqQ/OAbIceUWBUFO3I+6wYYqbbsjKZ++
-duCG6lbd+59qgGAIy8u6Wa/GfAX9R63DnUGx7WIBNI5LZICFdNZDAi5rAOV09JWl
-3vNpAoGAYYqCUm4UEN3JrnSRPgQ0YXL1Z2weGSw3Ey2KkWV1j9lI4Gjr+PEDEkZ4
-n5ojrz+OvvbPABB1JTV3pblQPTXbR5ESkCcFOC2tmebpUl5vnDAzcGyyTcfU5nPO
-lwir//2RufTbuqhwn/60hD6eLwjt9UVjfiTMqqq0q35xRYy5hAU=
------END RSA PRIVATE KEY-----`;
+// =============================================================================
+// DOKU CONFIGURATION - Credentials from Environment Variables
+// =============================================================================
+
+/**
+ * Decode RSA Private Key from environment variable
+ * Supports both base64-encoded and newline-escaped formats
+ * @param {string} envVar - The environment variable value
+ * @returns {string} The decoded PEM key or empty string
+ */
+function decodeDokuPrivateKey(envVar) {
+    if (!envVar) return '';
+
+    // Check if it's base64 encoded (doesn't contain PEM headers)
+    if (!envVar.includes('-----BEGIN')) {
+        try {
+            return Buffer.from(envVar, 'base64').toString('utf8');
+        } catch (e) {
+            // Fallback: treat as newline-escaped string
+            return envVar.replace(/\\n/g, '\n');
+        }
+    }
+
+    // Already in PEM format (possibly with escaped newlines)
+    return envVar.replace(/\\n/g, '\n');
+}
 
 const DOKU_CONFIG = {
-    // NOTE: These credentials are PRODUCTION credentials only
-    // ALWAYS using PRODUCTION API
     SANDBOX: {
-        // Not used - production credentials only
-        CLIENT_ID: 'BRN-0275-1760357392509',
-        SECRET_KEY: 'SK-bBnDtOM1lK4AAzR72gTC',
-        PRIVATE_KEY: DOKU_PRIVATE_KEY,
+        CLIENT_ID: process.env.DOKU_SANDBOX_CLIENT_ID || '',
+        SECRET_KEY: process.env.DOKU_SANDBOX_SECRET_KEY || '',
+        PRIVATE_KEY: decodeDokuPrivateKey(process.env.DOKU_SANDBOX_PRIVATE_KEY),
         API_URL: 'https://api-sandbox.doku.com/checkout/v1/payment'
     },
     PRODUCTION: {
-        CLIENT_ID: 'BRN-0275-1760357392509',
-        SECRET_KEY: 'SK-bBnDtOM1lK4AAzR72gTC',
-        PRIVATE_KEY: DOKU_PRIVATE_KEY,
+        CLIENT_ID: process.env.DOKU_CLIENT_ID || '',
+        SECRET_KEY: process.env.DOKU_SECRET_KEY || '',
+        PRIVATE_KEY: decodeDokuPrivateKey(process.env.DOKU_PRIVATE_KEY),
         API_URL: 'https://api.doku.com/checkout/v1/payment'
     }
 };
 
+// =============================================================================
+// MIDTRANS CONFIGURATION - Credentials from Environment Variables
+// =============================================================================
+
 const MIDTRANS_CONFIG = {
-    SERVER_KEY: 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu',
-    API_URL: 'https://app.midtrans.com/snap/v1/transactions'
+    PRODUCTION: {
+        SERVER_KEY: process.env.MIDTRANS_SERVER_KEY || '',
+        API_URL: 'https://app.midtrans.com/snap/v1/transactions'
+    },
+    SANDBOX: {
+        SERVER_KEY: process.env.MIDTRANS_SANDBOX_SERVER_KEY || '',
+        API_URL: 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+    }
 };
+
+// AIRWALLEX CONFIGURATION (SGD Currency)
+const AIRWALLEX_CONFIG = {
+    SANDBOX: {
+        CLIENT_ID: process.env.AIRWALLEX_SANDBOX_CLIENT_ID || '', // Demo/Sandbox Client ID
+        API_KEY: process.env.AIRWALLEX_SANDBOX_API_KEY || '',     // Demo/Sandbox API Key
+        API_URL: 'https://api-demo.airwallex.com/api/v1'
+    },
+    PRODUCTION: {
+        CLIENT_ID: process.env.AIRWALLEX_CLIENT_ID || '',   // Production Client ID
+        API_KEY: process.env.AIRWALLEX_API_KEY || '',       // Production API Key
+        API_URL: 'https://api.airwallex.com/api/v1'
+    }
+};
+
+// =============================================================================
+// CONFIGURATION VALIDATION
+// =============================================================================
+
+/**
+ * Validate required environment variables for a gateway
+ * @param {string} gateway - Gateway name (doku, midtrans, airwallex)
+ * @param {boolean} isProduction - Whether to check production or sandbox vars
+ * @param {object} logger - Logger instance
+ * @returns {object} { valid: boolean, missing: string[] }
+ */
+function validateGatewayConfig(gateway, isProduction, logger) {
+    const missing = [];
+
+    if (gateway === 'doku') {
+        const config = isProduction ? DOKU_CONFIG.PRODUCTION : DOKU_CONFIG.SANDBOX;
+        if (!config.CLIENT_ID) missing.push(isProduction ? 'DOKU_CLIENT_ID' : 'DOKU_SANDBOX_CLIENT_ID');
+        if (!config.SECRET_KEY) missing.push(isProduction ? 'DOKU_SECRET_KEY' : 'DOKU_SANDBOX_SECRET_KEY');
+        if (!config.PRIVATE_KEY) missing.push(isProduction ? 'DOKU_PRIVATE_KEY' : 'DOKU_SANDBOX_PRIVATE_KEY');
+    } else if (gateway === 'midtrans') {
+        const config = isProduction ? MIDTRANS_CONFIG.PRODUCTION : MIDTRANS_CONFIG.SANDBOX;
+        if (!config.SERVER_KEY) missing.push(isProduction ? 'MIDTRANS_SERVER_KEY' : 'MIDTRANS_SANDBOX_SERVER_KEY');
+    } else if (gateway === 'airwallex') {
+        const config = isProduction ? AIRWALLEX_CONFIG.PRODUCTION : AIRWALLEX_CONFIG.SANDBOX;
+        if (!config.CLIENT_ID) missing.push(isProduction ? 'AIRWALLEX_CLIENT_ID' : 'AIRWALLEX_SANDBOX_CLIENT_ID');
+        if (!config.API_KEY) missing.push(isProduction ? 'AIRWALLEX_API_KEY' : 'AIRWALLEX_SANDBOX_API_KEY');
+    }
+
+    if (missing.length > 0 && logger) {
+        logger.warn(`Missing ${gateway} configuration`, {
+            gateway,
+            environment: isProduction ? 'production' : 'sandbox',
+            missingVariables: missing
+        });
+    }
+
+    return { valid: missing.length === 0, missing };
+}
 
 // =============================================================================
 
@@ -84,6 +142,163 @@ exports.handler = async function(event, context) {
         functionVersion: 'artcom_v8.7_multi_gateway'
     });
 
+    // =============================================================================
+    // AIRWALLEX WEBHOOK HANDLER (Incoming notifications from Airwallex)
+    // =============================================================================
+    // Check if this is an Airwallex webhook callback
+    const queryParams = event.queryStringParameters || {};
+    if (queryParams.webhook === 'airwallex' && event.httpMethod === 'POST') {
+        logger.info('Airwallex webhook received', {
+            hasSignature: !!event.headers['x-signature'],
+            contentType: event.headers['content-type']
+        });
+
+        try {
+            const webhookBody = JSON.parse(event.body || '{}');
+            const eventType = webhookBody.name || webhookBody.event_type;
+            const paymentIntentId = webhookBody.data?.object?.id || webhookBody.data?.id;
+            const merchantOrderId = webhookBody.data?.object?.merchant_order_id || webhookBody.data?.merchant_order_id;
+            const status = webhookBody.data?.object?.status || webhookBody.data?.status;
+
+            logger.info('Airwallex webhook details', {
+                eventType,
+                paymentIntentId,
+                merchantOrderId,
+                status
+            });
+
+            // Map Airwallex status to NextPay status
+            let nextpayStatus = 'pending';
+            if (eventType === 'payment_intent.succeeded' || status === 'SUCCEEDED') {
+                nextpayStatus = 'completed';
+            } else if (eventType === 'payment_intent.failed' || status === 'FAILED' || status === 'CANCELLED') {
+                nextpayStatus = 'failed';
+            } else if (status === 'REQUIRES_CAPTURE' || status === 'REQUIRES_PAYMENT_METHOD') {
+                nextpayStatus = 'pending';
+            }
+
+            logger.info('Status mapped', {
+                airwallexStatus: status,
+                airwallexEvent: eventType,
+                nextpayStatus
+            });
+
+            // Check if this is a NextPay order by:
+            // 1. Direct ARTCOM_ order ID
+            // 2. Payment Link order (has "Payment ARTCOM_" prefix)
+            // 3. Has a valid payment_intent_id (can be looked up in DB)
+            const isDirectArtcomOrder = merchantOrderId && merchantOrderId.startsWith('ARTCOM_') && merchantOrderId.length === 34;
+            const isPaymentLinkOrder = merchantOrderId && merchantOrderId.startsWith('Payment ARTCOM_');
+            const hasPaymentIntentId = !!paymentIntentId;
+
+            // Clean the order_id by removing "Payment " prefix (Payment Links add this prefix)
+            let cleanOrderId = merchantOrderId;
+            if (isPaymentLinkOrder) {
+                cleanOrderId = merchantOrderId.substring(8); // Remove "Payment " prefix
+                logger.info('Cleaned Payment Link order ID', {
+                    original: merchantOrderId,
+                    cleaned: cleanOrderId
+                });
+            }
+
+            // Forward to NextPay webhook handler if this is a NextPay order
+            if (isDirectArtcomOrder || isPaymentLinkOrder || hasPaymentIntentId) {
+                // Determine environment based on metadata
+                const metadata = webhookBody.data?.object?.metadata || {};
+                const isTestModeFromMetadata = metadata.test_mode === 'true';
+                const isLocalDev = process.env.NETLIFY_DEV === 'true' || process.env.LOCAL_DEV === 'true';
+
+                // Route based on test_mode in metadata:
+                // - test_mode: true  → sandbox → nextpaytest.de
+                // - test_mode: false → production → nextpays.de
+                let nextpayWebhookUrl;
+                if (isLocalDev) {
+                    // LOCAL TESTING: Forward to local NextPay
+                    nextpayWebhookUrl = 'http://localhost:8888/webhook/airwallex.php';
+                } else if (isTestModeFromMetadata) {
+                    // SANDBOX: Forward to test server (nextpaytest.de)
+                    nextpayWebhookUrl = 'https://nextpaytest.de/webhook/airwallex.php';
+                } else {
+                    // PRODUCTION: Forward to production NextPay (nextpays.de)
+                    nextpayWebhookUrl = 'https://nextpays.de/webhook/airwallex.php';
+                }
+
+                logger.info('Forwarding to NextPay', {
+                    webhookUrl: nextpayWebhookUrl,
+                    orderId: cleanOrderId,
+                    originalOrderId: merchantOrderId,
+                    paymentIntentId,
+                    status: nextpayStatus,
+                    isTestMode: isTestModeFromMetadata,
+                    environment: isTestModeFromMetadata ? 'sandbox' : 'production',
+                    isPaymentLinkOrder
+                });
+
+                try {
+                    const forwardResponse = await fetch(nextpayWebhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'ArtCom-Airwallex-Webhook-Forwarder-v1.0',
+                            'X-Forwarded-From': 'netlify-function'
+                        },
+                        body: JSON.stringify({
+                            event_type: eventType,
+                            order_id: cleanOrderId, // Use cleaned order_id (without "Payment " prefix)
+                            original_order_id: merchantOrderId, // Keep original for reference
+                            payment_intent_id: paymentIntentId,
+                            status: nextpayStatus,
+                            airwallex_status: status,
+                            currency: webhookBody.data?.object?.currency || 'SGD',
+                            amount: webhookBody.data?.object?.amount,
+                            metadata: webhookBody.data?.object?.metadata,
+                            raw_webhook: webhookBody,
+                            is_payment_link: isPaymentLinkOrder,
+                            forwarded_at: new Date().toISOString()
+                        })
+                    });
+
+                    logger.info('NextPay forward response', {
+                        status: forwardResponse.status,
+                        ok: forwardResponse.ok
+                    });
+                } catch (forwardError) {
+                    logger.error('Failed to forward to NextPay', forwardError, {
+                        webhookUrl: nextpayWebhookUrl,
+                        orderId: merchantOrderId
+                    });
+                }
+            }
+
+            // Always return 200 to Airwallex to acknowledge receipt
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    message: 'Webhook received and processed',
+                    event_type: eventType,
+                    order_id: merchantOrderId,
+                    status: nextpayStatus,
+                    timestamp: Math.floor(Date.now() / 1000)
+                })
+            };
+
+        } catch (webhookError) {
+            logger.error('Airwallex webhook processing error', webhookError);
+            // Still return 200 to prevent Airwallex from retrying
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: false,
+                    error: 'Webhook processing error',
+                    message: webhookError.message
+                })
+            };
+        }
+    }
+
     if (event.httpMethod === 'OPTIONS') {
         logger.info('CORS preflight request', { origin: event.headers.origin });
         return {
@@ -93,7 +308,7 @@ exports.handler = async function(event, context) {
                 message: 'CORS preflight successful',
                 timestamp: Math.floor(Date.now() / 1000),
                 function_version: 'artcom_v8.7_multi_gateway',
-                supported_gateways: ['midtrans', 'doku']
+                supported_gateways: ['midtrans', 'doku', 'airwallex']
             })
         };
     }
@@ -134,7 +349,7 @@ exports.handler = async function(event, context) {
     // *** UPDATED: Create callback token with SOURCE ***
     function createCallbackToken(orderId, source) {
         const timestamp = Math.floor(Date.now() / 1000);
-        const secret = 'ARTCOM_CALLBACK_SECRET_2024';
+        const secret = process.env.ARTCOM_CALLBACK_SECRET || 'ARTCOM_CALLBACK_SECRET_2024';
 
         // Include source in hash calculation
         const hash = createSimpleHash(orderId + timestamp + source, secret);
@@ -694,7 +909,11 @@ exports.handler = async function(event, context) {
 
         let webhookUrl;
         if (isNextPay) {
-            if (data.test_mode) {
+            // Check if custom webhook URL is provided (for local testing)
+            if (data.webhook_url) {
+                webhookUrl = data.webhook_url;
+                logger.info('Using custom webhook URL for local testing', { webhookUrl });
+            } else if (data.test_mode) {
                 webhookUrl = 'https://nextpays1.de/webhook/midtrans.php';
             } else {
                 webhookUrl = 'https://nextpays.de/webhook/midtrans.php';
@@ -741,6 +960,474 @@ exports.handler = async function(event, context) {
 
     // =============================================================================
     // END DOKU FUNCTIONS
+    // =============================================================================
+
+    // =============================================================================
+    // AIRWALLEX PAYMENT GATEWAY FUNCTIONS (SGD Currency)
+    // =============================================================================
+
+    /**
+     * Get Airwallex Access Token
+     * Uses client_id + api_key to authenticate and get Bearer token
+     */
+    async function getAirwallexAccessToken(clientId, apiKey, isProduction, logger) {
+        const timer = logger.startTimer('airwallex_token');
+
+        logger.logAuthAttempt('airwallex', clientId, 'access_token');
+
+        const baseUrl = isProduction
+            ? AIRWALLEX_CONFIG.PRODUCTION.API_URL
+            : AIRWALLEX_CONFIG.SANDBOX.API_URL;
+
+        const tokenUrl = `${baseUrl}/authentication/login`;
+
+        logger.debug('Airwallex token request', {
+            gateway: 'airwallex',
+            operation: 'access_token',
+            clientIdLength: clientId ? clientId.length : 0,
+            apiKeyLength: apiKey ? apiKey.length : 0,
+            isProduction,
+            tokenUrl
+        });
+
+        try {
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-client-id': clientId,
+                    'x-api-key': apiKey
+                }
+            });
+
+            const responseData = await response.json();
+            const duration = timer.end();
+
+            logger.logApiResponse('airwallex', response.status, response.ok, duration);
+
+            if (response.ok && responseData.token) {
+                logger.logAuthSuccess('airwallex', 'access_token', responseData.expires_at);
+                logger.debug('Airwallex token obtained', {
+                    gateway: 'airwallex',
+                    tokenLength: responseData.token.length,
+                    expiresAt: responseData.expires_at
+                });
+                return responseData.token;
+            } else {
+                logger.logAuthFailure('airwallex', 'Invalid response or missing token', response.status);
+                logger.debug('Airwallex auth failure details', {
+                    gateway: 'airwallex',
+                    status: response.status,
+                    responseData
+                });
+                return null;
+            }
+        } catch (error) {
+            timer.end();
+            logger.error('Airwallex token network error', error, {
+                gateway: 'airwallex',
+                operation: 'access_token',
+                url: tokenUrl
+            });
+            return null;
+        }
+    }
+
+    /**
+     * Handle Airwallex Payment Creation
+     * Creates a Payment Intent with Hosted Checkout
+     */
+    async function handleAirwallexPayment(requestData, headers, logger) {
+        const airwallexLogger = logger.child({ gateway: 'airwallex', operation: 'payment_creation' });
+
+        airwallexLogger.info('AIRWALLEX payment request started');
+        airwallexLogger.debug('Request data received', { requestData });
+
+        const {
+            amount,           // Amount in SGD (already converted)
+            amount_sgd,       // Explicit SGD amount if provided
+            order_id,
+            item_name = 'NextPay Payment',
+            callback_base_url,
+            test_mode = false,
+            payment_source = 'legacy',
+            custom_name,
+            credit_card,
+            customer_email,
+            customer_phone
+        } = requestData;
+
+        // Use SGD amount if provided, otherwise use amount
+        const finalAmountSgd = amount_sgd || amount;
+
+        airwallexLogger.debug('Extracted request parameters', {
+            amountSgd: finalAmountSgd,
+            orderId: order_id,
+            itemName: item_name,
+            callbackBaseUrl: callback_base_url,
+            testMode: test_mode,
+            paymentSource: payment_source,
+            hasCustomName: !!custom_name
+        });
+
+        // Select environment
+        const isProduction = !test_mode;
+        const airwallexEnv = isProduction ? AIRWALLEX_CONFIG.PRODUCTION : AIRWALLEX_CONFIG.SANDBOX;
+
+        airwallexLogger.debug('AIRWALLEX environment configuration', {
+            environment: isProduction ? 'PRODUCTION' : 'SANDBOX',
+            apiUrl: airwallexEnv.API_URL,
+            clientIdConfigured: !!airwallexEnv.CLIENT_ID,
+            apiKeyConfigured: !!airwallexEnv.API_KEY
+        });
+
+        // Validate credentials
+        if (!airwallexEnv.CLIENT_ID || !airwallexEnv.API_KEY) {
+            airwallexLogger.error('Missing Airwallex credentials', null, {
+                hasClientId: !!airwallexEnv.CLIENT_ID,
+                hasApiKey: !!airwallexEnv.API_KEY,
+                environment: isProduction ? 'PRODUCTION' : 'SANDBOX'
+            });
+            return {
+                statusCode: 500,
+                headers: headers,
+                body: JSON.stringify({
+                    success: false,
+                    gateway: 'airwallex',
+                    error: 'Airwallex credentials not configured',
+                    message: isProduction
+                        ? 'Set AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY environment variables'
+                        : 'Set AIRWALLEX_SANDBOX_CLIENT_ID and AIRWALLEX_SANDBOX_API_KEY environment variables'
+                })
+            };
+        }
+
+        // STEP 1: Get Access Token
+        airwallexLogger.info('Step 1: Obtaining Access Token');
+        const accessToken = await getAirwallexAccessToken(
+            airwallexEnv.CLIENT_ID,
+            airwallexEnv.API_KEY,
+            isProduction,
+            airwallexLogger
+        );
+
+        if (!accessToken) {
+            airwallexLogger.error('Failed to obtain Airwallex access token', null, {
+                hint: 'Check CLIENT_ID and API_KEY configuration'
+            });
+            return {
+                statusCode: 500,
+                headers: headers,
+                body: JSON.stringify({
+                    success: false,
+                    gateway: 'airwallex',
+                    error: 'Failed to obtain Airwallex authentication token',
+                    message: 'Check CLIENT_ID and API_KEY in Netlify environment variables'
+                })
+            };
+        }
+
+        airwallexLogger.info('Access Token obtained successfully');
+
+        // Generate customer data
+        let nameForGeneration;
+        if (custom_name && typeof custom_name === 'string' && custom_name.trim()) {
+            nameForGeneration = custom_name.trim();
+            airwallexLogger.debug('Using provided custom name', { name: nameForGeneration });
+        } else {
+            nameForGeneration = generateFallbackName(order_id, finalAmountSgd);
+            airwallexLogger.debug('Generated fallback name', { name: nameForGeneration });
+        }
+
+        const customerData = generateDeterministicContact(nameForGeneration, credit_card);
+        airwallexLogger.debug('Customer data generated', {
+            inputName: nameForGeneration,
+            outputName: `${customerData.first_name} ${customerData.last_name}`,
+            hasEmail: !!customerData.email,
+            hasPhone: !!customerData.phone
+        });
+
+        // Determine callback URL
+        let callbackUrl;
+        let airwallexSource;
+
+        if (payment_source === 'wix' || payment_source === 'wix_simple') {
+            // WIX orders: Direct callback
+            callbackUrl = `https://www.artcom.design/webhook/payment_complete.php?order_id=${order_id}&gateway=airwallex`;
+            airwallexSource = 'wix';
+            airwallexLogger.info('WIX AIRWALLEX payment - direct callback configured');
+        } else {
+            // NextPay orders: Use callback_token flow
+            if (callback_base_url) {
+                callbackUrl = callback_base_url;
+            } else if (test_mode || payment_source === 'nextpay_test') {
+                callbackUrl = 'https://nextpays1staging.wpcomstaging.com';
+            } else {
+                callbackUrl = 'https://artcomdesign3-umbac.wpcomstaging.com';
+            }
+
+            airwallexSource = (test_mode || payment_source === 'nextpay_test') ? 'nextpay1' : 'nextpay';
+            const callbackToken = createCallbackToken(order_id, airwallexSource);
+
+            airwallexLogger.info('AIRWALLEX callback token created', {
+                tokenExpiry: '1 hour',
+                tokenTimestamp: Math.floor(Date.now() / 1000),
+                tokenSource: airwallexSource
+            });
+
+            callbackUrl += `?callback_token=${callbackToken}&gateway=airwallex&order_id=${order_id}`;
+        }
+
+        airwallexLogger.debug('Callback URL configured', {
+            url: airwallexLogger.masker ? airwallexLogger.masker.maskUrl(callbackUrl) : '[masked]',
+            source: airwallexSource
+        });
+
+        // STEP 2: Create Payment Intent
+        airwallexLogger.info('Step 2: Creating Payment Intent');
+
+        // Generate unique request_id for idempotency
+        const requestId = `${order_id}_${Date.now()}`;
+
+        // Airwallex Payment Intent request body
+        const paymentIntentBody = {
+            request_id: requestId,
+            amount: parseFloat(finalAmountSgd),
+            currency: 'SGD',
+            merchant_order_id: order_id,
+            descriptor: item_name.substring(0, 22), // Max 22 chars for descriptor
+            order: {
+                products: [
+                    {
+                        code: payment_source === 'wix' ? 'ARTCOM_WIX' : 'NEXTPAY_PAYMENT',
+                        name: item_name.substring(0, 120), // Max 120 chars
+                        quantity: 1,
+                        unit_price: parseFloat(finalAmountSgd),
+                        desc: `Payment for order ${order_id}`.substring(0, 120)
+                    }
+                ]
+            },
+            metadata: {
+                order_id: order_id,
+                payment_source: payment_source,
+                source: airwallexSource,
+                test_mode: test_mode ? 'true' : 'false',
+                created_at: new Date().toISOString()
+            },
+            return_url: callbackUrl
+        };
+
+        // Add customer info if available
+        if (customer_email || customerData.email) {
+            paymentIntentBody.customer = {
+                email: customer_email || customerData.email,
+                first_name: customerData.first_name,
+                last_name: customerData.last_name,
+                phone_number: customer_phone || customerData.phone
+            };
+        }
+
+        airwallexLogger.debug('Payment Intent body prepared', {
+            requestId,
+            amount: paymentIntentBody.amount,
+            currency: paymentIntentBody.currency,
+            merchantOrderId: paymentIntentBody.merchant_order_id,
+            hasCustomer: !!paymentIntentBody.customer
+        });
+
+        const paymentIntentUrl = `${airwallexEnv.API_URL}/pa/payment_intents/create`;
+        const timer = airwallexLogger.startTimer('airwallex_payment_intent');
+
+        try {
+            const response = await fetch(paymentIntentUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify(paymentIntentBody)
+            });
+
+            const responseText = await response.text();
+            const duration = timer.end();
+
+            airwallexLogger.logApiResponse('airwallex', response.status, response.ok, duration);
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = JSON.parse(responseText);
+                } catch (e) {
+                    errorData = { error: responseText };
+                }
+
+                airwallexLogger.logPaymentError('airwallex', order_id, 'Airwallex API returned error', response.status);
+                airwallexLogger.debug('Airwallex API error details', {
+                    status: response.status,
+                    errorData
+                });
+
+                logger.info('[REQUEST_COMPLETE]', {
+                    success: false,
+                    gateway: 'airwallex',
+                    paymentSource: payment_source,
+                    totalDurationMs: logger._getElapsedTime(),
+                    orderId: order_id,
+                    amount: finalAmountSgd,
+                    errorType: 'payment_failed',
+                    statusCode: response.status
+                });
+
+                return {
+                    statusCode: response.status,
+                    headers: headers,
+                    body: JSON.stringify({
+                        success: false,
+                        gateway: 'airwallex',
+                        error: 'Airwallex payment creation failed',
+                        details: errorData,
+                        airwallex_status: response.status
+                    })
+                };
+            }
+
+            const responseData = JSON.parse(responseText);
+
+            airwallexLogger.debug('Payment Intent created', {
+                paymentIntentId: responseData.id,
+                status: responseData.status,
+                hasClientSecret: !!responseData.client_secret
+            });
+
+            // STEP 3: Create Payment Link for hosted checkout
+            airwallexLogger.info('Step 3: Creating Payment Link for hosted checkout');
+
+            const paymentLinkBody = {
+                amount: parseFloat(finalAmountSgd),
+                currency: 'SGD',
+                title: `Payment ${order_id}`,
+                reusable: false,
+                metadata: {
+                    order_id: order_id,
+                    payment_intent_id: responseData.id
+                }
+            };
+
+            const paymentLinkTimer = airwallexLogger.startTimer('airwallex_payment_link');
+            const paymentLinkResponse = await fetch(`${airwallexEnv.API_URL}/pa/payment_links/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify(paymentLinkBody)
+            });
+
+            const paymentLinkData = await paymentLinkResponse.json();
+            const paymentLinkDuration = paymentLinkTimer.end();
+
+            airwallexLogger.debug('Payment Link response', {
+                status: paymentLinkResponse.status,
+                hasUrl: !!paymentLinkData.url,
+                duration: paymentLinkDuration
+            });
+
+            // Use Payment Link URL if available, fallback to legacy URL format
+            const hostedCheckoutUrl = paymentLinkData.url || (isProduction
+                ? `https://checkout.airwallex.com/checkout.html?intent_id=${responseData.id}&client_secret=${responseData.client_secret}&mode=payment`
+                : `https://checkout-demo.airwallex.com/checkout.html?intent_id=${responseData.id}&client_secret=${responseData.client_secret}&mode=payment`);
+
+            airwallexLogger.logPaymentSuccess('airwallex', order_id, true);
+            airwallexLogger.debug('Payment response details', {
+                paymentIntentId: responseData.id,
+                paymentLinkId: paymentLinkData.id,
+                hasClientSecret: !!responseData.client_secret,
+                hostedCheckoutUrl: '[configured]'
+            });
+
+            // Send webhook notification
+            await sendWebhookNotification({
+                event: 'payment_initiated_airwallex',
+                order_id: order_id,
+                amount: parseFloat(finalAmountSgd),
+                currency: 'SGD',
+                gateway: 'airwallex',
+                payment_source: payment_source,
+                test_mode: test_mode,
+                payment_intent_id: responseData.id,
+                callback_url: callbackUrl
+            }, airwallexLogger);
+
+            logger.info('[REQUEST_COMPLETE]', {
+                success: true,
+                gateway: 'airwallex',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                amountSgd: finalAmountSgd
+            });
+
+            return {
+                statusCode: 200,
+                headers: headers,
+                body: JSON.stringify({
+                    success: true,
+                    gateway: 'airwallex',
+                    data: {
+                        payment_intent_id: responseData.id,
+                        client_secret: responseData.client_secret,
+                        redirect_url: hostedCheckoutUrl,
+                        order_id: order_id,
+                        amount: parseFloat(finalAmountSgd),
+                        currency: 'SGD',
+                        expiry_duration: '30 minutes',
+                        airwallex_response: {
+                            id: responseData.id,
+                            status: responseData.status,
+                            currency: responseData.currency,
+                            amount: responseData.amount
+                        },
+                        timestamp: Math.floor(Date.now() / 1000),
+                        function_version: 'artcom_v8.7_multi_gateway',
+                        payment_source: payment_source,
+                        test_mode: test_mode,
+                        nextpay_source: airwallexSource
+                    }
+                })
+            };
+
+        } catch (error) {
+            timer.end();
+            airwallexLogger.error('AIRWALLEX payment creation failed with exception', error, {
+                orderId: order_id,
+                amount: finalAmountSgd
+            });
+
+            logger.info('[REQUEST_COMPLETE]', {
+                success: false,
+                gateway: 'airwallex',
+                paymentSource: payment_source,
+                totalDurationMs: logger._getElapsedTime(),
+                orderId: order_id,
+                errorType: 'exception',
+                errorMessage: error.message
+            });
+
+            return {
+                statusCode: 500,
+                headers: headers,
+                body: JSON.stringify({
+                    success: false,
+                    gateway: 'airwallex',
+                    error: 'Internal error during Airwallex payment creation',
+                    message: error.message
+                })
+            };
+        }
+    }
+
+    // =============================================================================
+    // END AIRWALLEX FUNCTIONS
     // =============================================================================
 
     // Advanced Deterministic Customer Data Generator - Credit Card Integrated
@@ -1067,13 +1754,14 @@ exports.handler = async function(event, context) {
                 body: JSON.stringify({
                     success: false,
                     error: 'payment_gateway parameter is required',
-                    allowed_gateways: ['midtrans', 'doku'],
-                    message: 'Please specify payment_gateway: "midtrans" or "doku"'
+                    allowed_gateways: ['midtrans', 'doku', 'airwallex'],
+                    message: 'Please specify payment_gateway: "midtrans", "doku", or "airwallex"'
                 })
             };
         }
 
-        if (payment_gateway !== 'midtrans' && payment_gateway !== 'doku') {
+        const validGateways = ['midtrans', 'doku', 'airwallex'];
+        if (!validGateways.includes(payment_gateway)) {
             logger.logValidationError('payment_gateway', payment_gateway, 'Invalid gateway value');
             return {
                 statusCode: 400,
@@ -1082,8 +1770,8 @@ exports.handler = async function(event, context) {
                     success: false,
                     error: 'Invalid payment_gateway parameter',
                     received: payment_gateway,
-                    allowed_gateways: ['midtrans', 'doku'],
-                    message: 'payment_gateway must be either "midtrans" or "doku"'
+                    allowed_gateways: validGateways,
+                    message: 'payment_gateway must be "midtrans", "doku", or "airwallex"'
                 })
             };
         }
@@ -1092,6 +1780,11 @@ exports.handler = async function(event, context) {
         if (payment_gateway === 'doku') {
             logger.info('Routing to DOKU payment gateway');
             return await handleDokuPayment(requestData, headers, logger);
+        }
+
+        if (payment_gateway === 'airwallex') {
+            logger.info('Routing to AIRWALLEX payment gateway (SGD)');
+            return await handleAirwallexPayment(requestData, headers, logger);
         }
 
         if (payment_gateway === 'midtrans') {
@@ -1338,9 +2031,17 @@ exports.handler = async function(event, context) {
             })
         }, midtransLogger);
 
-        const apiUrl = 'https://app.midtrans.com/snap/v1/transactions';
-        const serverKey = 'Mid-server-kO-tU3T7Q9MYO_25tJTggZeu';
+        // Use sandbox or production based on test_mode
+        const midtransEnv = test_mode ? MIDTRANS_CONFIG.SANDBOX : MIDTRANS_CONFIG.PRODUCTION;
+        const apiUrl = midtransEnv.API_URL;
+        const serverKey = midtransEnv.SERVER_KEY;
         const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
+
+        midtransLogger.info('Midtrans environment', {
+            test_mode: test_mode,
+            environment: test_mode ? 'SANDBOX' : 'PRODUCTION',
+            apiUrl: apiUrl
+        });
 
         midtransLogger.logApiCall('midtrans', apiUrl, 'POST');
         midtransLogger.debug('Midtrans request details', {
