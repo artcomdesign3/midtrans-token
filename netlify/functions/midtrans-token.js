@@ -1,17 +1,37 @@
-// netlify/functions/midtrans-token.js - ArtCom v8.7 - FINAL SYNC FIX (Original ID + No Auto Redirect)
+// netlify/functions/midtrans-token.js - ArtCom v8.8 - File-Based Key Loading
 // =============================================================================
 // DEPENDENCIES
 // =============================================================================
 
 const { createLogger } = require('./utils/logger');
+const fs = require('fs');
+const path = require('path');
 
 // =============================================================================
 // PAYMENT GATEWAY CONFIGURATION
 // =============================================================================
 
 // =============================================================================
-// DOKU CONFIGURATION - Credentials from Environment Variables
+// DOKU CONFIGURATION - Keys from Files (fallback to Environment Variables)
 // =============================================================================
+// NOTE: RSA private keys are stored in files to avoid AWS Lambda's 4KB env var limit
+
+/**
+ * Read RSA Private Key from file
+ * @param {string} filename - The key filename (e.g., 'doku_sandbox.pem')
+ * @returns {string} The PEM key content or empty string
+ */
+function readKeyFromFile(filename) {
+    try {
+        const keyPath = path.join(__dirname, 'keys', filename);
+        if (fs.existsSync(keyPath)) {
+            return fs.readFileSync(keyPath, 'utf8').trim();
+        }
+    } catch (e) {
+        // File read failed, will fall back to env var
+    }
+    return '';
+}
 
 /**
  * Decode RSA Private Key from environment variable
@@ -36,17 +56,33 @@ function decodeDokuPrivateKey(envVar) {
     return envVar.replace(/\\n/g, '\n');
 }
 
+/**
+ * Load DOKU private key: try file first, then environment variable
+ * @param {string} filename - The key filename
+ * @param {string} envVarName - The environment variable name
+ * @returns {string} The PEM key content
+ */
+function loadDokuPrivateKey(filename, envVarName) {
+    // Try file first (avoids 4KB env var limit)
+    const fromFile = readKeyFromFile(filename);
+    if (fromFile && fromFile.includes('-----BEGIN')) {
+        return fromFile;
+    }
+    // Fall back to environment variable
+    return decodeDokuPrivateKey(process.env[envVarName]);
+}
+
 const DOKU_CONFIG = {
     SANDBOX: {
         CLIENT_ID: process.env.DOKU_SANDBOX_CLIENT_ID || '',
         SECRET_KEY: process.env.DOKU_SANDBOX_SECRET_KEY || '',
-        PRIVATE_KEY: decodeDokuPrivateKey(process.env.DOKU_SANDBOX_PRIVATE_KEY),
+        PRIVATE_KEY: loadDokuPrivateKey('doku_sandbox.pem', 'DOKU_SANDBOX_PRIVATE_KEY'),
         API_URL: 'https://api-sandbox.doku.com/checkout/v1/payment'
     },
     PRODUCTION: {
         CLIENT_ID: process.env.DOKU_CLIENT_ID || '',
         SECRET_KEY: process.env.DOKU_SECRET_KEY || '',
-        PRIVATE_KEY: decodeDokuPrivateKey(process.env.DOKU_PRIVATE_KEY),
+        PRIVATE_KEY: loadDokuPrivateKey('doku_production.pem', 'DOKU_PRIVATE_KEY'),
         API_URL: 'https://api.doku.com/checkout/v1/payment'
     }
 };

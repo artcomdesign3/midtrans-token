@@ -7,6 +7,8 @@
 
 [functions]
   directory = "netlify/functions"
+  # Include RSA key files in function bundle (avoids 4KB env var limit)
+  included_files = ["netlify/functions/keys/*.pem"]
 
 # URL Aliases - Hide "midtrans" name from external services
 [[redirects]]
