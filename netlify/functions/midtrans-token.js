@@ -182,8 +182,14 @@ exports.handler = async function(event, context) {
     // AIRWALLEX WEBHOOK HANDLER (Incoming notifications from Airwallex)
     // =============================================================================
     // Check if this is an Airwallex webhook callback
+    // Note: Check both query param AND path because Netlify rewrites (status 200)
+    // don't pass query params from target URL to event.queryStringParameters
     const queryParams = event.queryStringParameters || {};
-    if (queryParams.webhook === 'airwallex' && event.httpMethod === 'POST') {
+    const isAirwallexWebhook = queryParams.webhook === 'airwallex' ||
+                               event.path === '/api/webhook/airwallex' ||
+                               event.path?.includes('/webhook/airwallex');
+
+    if (isAirwallexWebhook && event.httpMethod === 'POST') {
         logger.info('Airwallex webhook received', {
             hasSignature: !!event.headers['x-signature'],
             contentType: event.headers['content-type']
@@ -222,12 +228,18 @@ exports.handler = async function(event, context) {
             // Check if this is a NextPay order by:
             // 1. Direct ARTCOM_ order ID
             // 2. Payment Link order (has "Payment ARTCOM_" prefix)
-            // 3. Has a valid payment_intent_id (can be looked up in DB)
+            // 3. Has order_id in metadata (Payment Links store original order_id here)
+            // 4. Has a valid payment_intent_id (can be looked up in DB)
+            const metadata = webhookBody.data?.object?.metadata || {};
+            const metadataOrderId = metadata.order_id;
+
             const isDirectArtcomOrder = merchantOrderId && merchantOrderId.startsWith('ARTCOM_') && merchantOrderId.length === 34;
             const isPaymentLinkOrder = merchantOrderId && merchantOrderId.startsWith('Payment ARTCOM_');
+            const hasMetadataOrderId = metadataOrderId && metadataOrderId.startsWith('ARTCOM_');
             const hasPaymentIntentId = !!paymentIntentId;
 
             // Clean the order_id by removing "Payment " prefix (Payment Links add this prefix)
+            // Priority: 1) Direct ARTCOM order, 2) Cleaned Payment Link order, 3) Metadata order_id
             let cleanOrderId = merchantOrderId;
             if (isPaymentLinkOrder) {
                 cleanOrderId = merchantOrderId.substring(8); // Remove "Payment " prefix
@@ -235,12 +247,18 @@ exports.handler = async function(event, context) {
                     original: merchantOrderId,
                     cleaned: cleanOrderId
                 });
+            } else if (!isDirectArtcomOrder && hasMetadataOrderId) {
+                // Fallback to metadata order_id if merchant_order_id is missing/invalid
+                cleanOrderId = metadataOrderId;
+                logger.info('Using metadata order_id as fallback', {
+                    metadataOrderId,
+                    originalMerchantOrderId: merchantOrderId
+                });
             }
 
             // Forward to NextPay webhook handler if this is a NextPay order
-            if (isDirectArtcomOrder || isPaymentLinkOrder || hasPaymentIntentId) {
-                // Determine environment based on metadata
-                const metadata = webhookBody.data?.object?.metadata || {};
+            if (isDirectArtcomOrder || isPaymentLinkOrder || hasMetadataOrderId || hasPaymentIntentId) {
+                // Determine environment based on metadata (already extracted above)
                 const isTestModeFromMetadata = metadata.test_mode === 'true';
                 const isLocalDev = process.env.NETLIFY_DEV === 'true' || process.env.LOCAL_DEV === 'true';
 
@@ -949,10 +967,13 @@ exports.handler = async function(event, context) {
             if (data.webhook_url) {
                 webhookUrl = data.webhook_url;
                 logger.info('Using custom webhook URL for local testing', { webhookUrl });
-            } else if (data.test_mode) {
-                webhookUrl = 'https://nextpays1.de/webhook/midtrans.php';
             } else {
-                webhookUrl = 'https://nextpays.de/webhook/midtrans.php';
+                // Determine base URL based on test_mode
+                const baseUrl = data.test_mode ? 'https://nextpaytest.de' : 'https://nextpays.de';
+
+                // Route to correct webhook endpoint based on gateway
+                const webhookFile = data.gateway === 'airwallex' ? 'airwallex.php' : 'midtrans.php';
+                webhookUrl = `${baseUrl}/webhook/${webhookFile}`;
             }
         } else {
             webhookUrl = 'https://www.artcom.design/webhook/midtrans.php';
@@ -1345,7 +1366,9 @@ exports.handler = async function(event, context) {
                 reusable: false,
                 metadata: {
                     order_id: order_id,
-                    payment_intent_id: responseData.id
+                    payment_intent_id: responseData.id,
+                    test_mode: test_mode ? 'true' : 'false',
+                    payment_source: payment_source
                 }
             };
 
